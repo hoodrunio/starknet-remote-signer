@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  starknet-remote-signer:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Keystore backend (environment for docker)
+      - SIGNER_KEYSTORE_BACKEND=environment
+      
+      # Private key (for environment backend)
+      - SIGNER_PRIVATE_KEY=${SIGNER_PRIVATE_KEY}
+      
+      # For software backend (mount keystore file as volume)
+      # - SIGNER_KEYSTORE_BACKEND=software
+      # - SIGNER_KEYSTORE_PATH=/keystore/keystore.json
+      # - SIGNER_PASSPHRASE=${SIGNER_PASSPHRASE}
+      
+      # API key for authentication
+      - SIGNER_API_KEY=${SIGNER_API_KEY}
+      
+      # Server configuration
+      - SIGNER_ADDRESS=0.0.0.0
+      - SIGNER_PORT=3000
+      
+      # Logging
+      - RUST_LOG=info
+      
+      # Optional: TLS (not implemented yet)
+      # - SIGNER_TLS=true
+      # - SIGNER_TLS_CERT=/certs/cert.pem
+      # - SIGNER_TLS_KEY=/certs/key.pem
+      
+    # Uncomment for encrypted keystore mounting
+    # volumes:
+    #   - ./keystore.json:/keystore/keystore.json:ro
+    #   - ./certs:/certs:ro  # For TLS certificates
+    
+    restart: unless-stopped
+    
+    # Security: Run as non-root user
+    user: "1000:1000"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add a monitoring container
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #   depends_on:
+  #     - starknet-remote-signer 

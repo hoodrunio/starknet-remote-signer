@@ -1,0 +1,54 @@
+# Build outputs
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment and config files
+.env
+.env.local
+.env.production
+config.toml
+*.toml
+
+# Keystore files
+keystore.json
+*.keystore
+
+# TLS certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+certs/
+
+# Logs
+*.log
+logs/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Test coverage
+coverage/
+*.profraw
+
+# Backup files
+*.backup
+*.bak
+
+# Private keys (extra protection)
+*private*
+*secret*
+*key* 
