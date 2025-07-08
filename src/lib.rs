@@ -21,7 +21,7 @@ pub struct StartArgs {
     pub config: Option<String>,
 
     /// Server bind address
-    #[arg(long, env = "SIGNER_ADDRESS", default_value = "127.0.0.1")]
+    #[arg(long, env = "SIGNER_ADDRESS", default_value = "0.0.0.0")]
     pub address: String,
 
     /// Server port
