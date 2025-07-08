@@ -51,4 +51,9 @@ coverage/
 # Private keys (extra protection)
 *private*
 *secret*
-*key* 
+*.key
+private_key*
+secret_key*
+# Allow keystore.rs source code (contains no actual keys)
+!keystore.rs 
+test_key_management.sh

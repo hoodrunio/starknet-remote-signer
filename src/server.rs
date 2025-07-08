@@ -51,7 +51,7 @@ pub struct SignRequest {
 
 #[derive(Serialize)]
 pub struct SignResponse {
-    pub signature: Vec<Felt>, // Compatible with starknet-attestation
+    pub signature: [Felt; 2], // Exact starknet-attestation compatibility
 }
 
 #[derive(Serialize, Deserialize)]
@@ -122,7 +122,7 @@ impl Server {
     pub fn create_router(&self) -> Router {
         let mut app = Router::new()
             .route("/health", get(health_check))
-            .route("/public_key", get(get_public_key))
+            .route("/get_public_key", get(get_public_key))  // starknet-attestation compatibility
             .route("/sign", post(sign_transaction))
             .route("/metrics", get(get_metrics))
             .with_state(self.app_state.clone());
@@ -181,7 +181,7 @@ async fn sign_transaction(
         Ok(signature) => {
             info!("Transaction signed successfully");
             Ok(Json(SignResponse { 
-                signature: signature.to_vec() // Convert [Felt; 2] to Vec<Felt>
+                signature // Keep as [Felt; 2] for starknet-attestation compatibility
             }))
         }
         Err(e) => {
