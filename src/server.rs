@@ -1,7 +1,6 @@
 use axum::{
     extract::State,
-    http::{HeaderMap, StatusCode},
-    middleware,
+    http::StatusCode,
     response::Json,
     routing::{get, post},
     Router,
@@ -51,7 +50,7 @@ pub struct SignRequest {
 
 #[derive(Serialize)]
 pub struct SignResponse {
-    pub signature: Vec<Felt>, // starknet-attestation main signer.rs compatibility
+    pub signature: Vec<Felt>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -120,26 +119,17 @@ impl Server {
     }
 
     pub fn create_router(&self) -> Router {
-        let mut app = Router::new()
+        Router::new()
             .route("/health", get(health_check))
-            .route("/get_public_key", get(get_public_key))  // starknet-attestation compatibility
+            .route("/get_public_key", get(get_public_key))
             .route("/sign", post(sign_transaction))
             .route("/metrics", get(get_metrics))
-            .with_state(self.app_state.clone());
-
-        // Add authentication middleware if API key is configured
-        if self.config.api_key.is_some() {
-            app = app.layer(middleware::from_fn_with_state(
-                self.app_state.clone(),
-                auth_middleware,
-            ));
-        }
-
-        app.layer(
-            ServiceBuilder::new()
-                .layer(TraceLayer::new_for_http())
-                .layer(CorsLayer::permissive()),
-        )
+            .with_state(self.app_state.clone())
+            .layer(
+                ServiceBuilder::new()
+                    .layer(TraceLayer::new_for_http())
+                    .layer(CorsLayer::permissive()),
+            )
     }
 }
 
@@ -180,9 +170,7 @@ async fn sign_transaction(
     match state.signer.sign_transaction(&request.transaction, request.chain_id).await {
         Ok(signature) => {
             info!("Transaction signed successfully");
-            Ok(Json(SignResponse { 
-                signature // Keep as [Felt; 2] for starknet-attestation compatibility
-            }))
+            Ok(Json(SignResponse { signature }))
         }
         Err(e) => {
             state.metrics.sign_errors.fetch_add(1, Ordering::Relaxed);
@@ -201,28 +189,7 @@ async fn get_metrics(State(state): State<AppState>) -> Result<Json<MetricsRespon
     }))
 }
 
-/// Authentication middleware
-async fn auth_middleware(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    request: axum::extract::Request,
-    next: axum::middleware::Next,
-) -> Result<axum::response::Response, StatusCode> {
-    if let Some(expected_api_key) = &state.config.api_key {
-        let api_key = headers
-            .get("x-api-key")
-            .or_else(|| headers.get("authorization"))
-            .and_then(|value| value.to_str().ok())
-            .map(|s| s.trim_start_matches("Bearer "));
 
-        if api_key != Some(expected_api_key.as_str()) {
-            warn!("Authentication failed - invalid or missing API key");
-            return Err(StatusCode::UNAUTHORIZED);
-        }
-    }
-
-    Ok(next.run(request).await)
-}
 
 #[cfg(test)]
 mod tests {
@@ -247,13 +214,12 @@ mod tests {
                 env_var: Some("TEST_PRIVATE_KEY".to_string()),
                 device: None,
             },
-            api_key: None,
+
             passphrase: None,
         };
 
         // Set test private key in environment
         std::env::set_var("TEST_PRIVATE_KEY", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
-        
         let server = Server::new(config).await.unwrap();
         TestServer::new(server.create_router()).unwrap()
     }
@@ -274,7 +240,7 @@ mod tests {
     async fn test_public_key() {
         let server = create_test_server().await;
         
-        let response = server.get("/public_key").await;
+        let response = server.get("/get_public_key").await;
         assert_eq!(response.status_code(), StatusCode::OK);
         
         let key_response: PublicKeyResponse = response.json();

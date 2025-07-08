@@ -8,7 +8,7 @@ A secure, lightweight remote signing service for Starknet transactions. Inspired
 - **PBKDF2 key derivation**: Strong key derivation with 100,000 iterations
 - **Secure memory handling**: Keys zeroized on drop, no plaintext storage
 - **Multiple backends**: Software (encrypted), Environment, HSM (planned)
-- **API key authentication**: Optional authentication for production use
+
 - **HTTPS support**: TLS encryption for secure communications (planned)
 - **Non-root execution**: Runs as unprivileged user in containers
 - **Input validation**: Comprehensive validation of all inputs
@@ -20,7 +20,6 @@ A secure, lightweight remote signing service for Starknet transactions. Inspired
 ```bash
 # Set your private key (without 0x prefix)
 export SIGNER_PRIVATE_KEY="your_private_key_here"
-export SIGNER_API_KEY="your_secure_api_key"
 
 # Start the service
 docker-compose up -d
@@ -39,8 +38,7 @@ docker-compose up -d
 ./target/release/starknet-remote-signer start \
   --keystore-backend software \
   --keystore-path keystore.json \
-  --passphrase "your_secure_passphrase" \
-  --api-key "your_secure_api_key"
+  --passphrase "your_secure_passphrase"
 ```
 
 ### Building from Source
@@ -59,7 +57,7 @@ Returns server status and public key.
 
 ### Get Public Key
 ```bash
-GET /public_key
+GET /get_public_key
 ```
 Returns the public key of the signer.
 
@@ -67,7 +65,6 @@ Returns the public key of the signer.
 ```bash
 POST /sign
 Content-Type: application/json
-X-API-Key: your_api_key  # If authentication is enabled
 
 {
     "transaction": {
@@ -132,7 +129,7 @@ starknet-remote-signer start --help
 | `--passphrase` | `SIGNER_PASSPHRASE` | Passphrase for encrypted keystore | ✅ (for software) |
 | `--address` | `SIGNER_ADDRESS` | Bind address | ❌ (default: 127.0.0.1) |
 | `--port` | `SIGNER_PORT` | Bind port | ❌ (default: 3000) |
-| `--api-key` | `SIGNER_API_KEY` | API key for authentication | ❌ |
+
 | `--config` | `SIGNER_CONFIG` | Config file path | ❌ |
 | `--tls` | `SIGNER_TLS` | Enable TLS | ❌ |
 | `--tls-cert` | `SIGNER_TLS_CERT` | TLS certificate file | ❌ |
@@ -165,7 +162,7 @@ backend = "software"  # "software", "environment", "hsm"
 path = "/path/to/keystore.json"  # For software backend
 env_var = "SIGNER_PRIVATE_KEY"   # For environment backend
 
-api_key = "your_secure_api_key"
+
 passphrase = "your_keystore_passphrase"  # For software backend
 ```
 
@@ -174,7 +171,7 @@ passphrase = "your_keystore_passphrase"  # For software backend
 ### Production Deployment
 
 1. **Always use HTTPS** in production (TLS support coming soon)
-2. **Set a strong API key** for authentication
+
 3. **Run behind a reverse proxy** (nginx, traefik)
 4. **Use a firewall** to restrict access
 5. **Monitor logs** for suspicious activity
@@ -197,7 +194,6 @@ services:
     build: .
     environment:
       - SIGNER_PRIVATE_KEY=${SIGNER_PRIVATE_KEY}
-      - SIGNER_API_KEY=${SIGNER_API_KEY}
       - SIGNER_ADDRESS=0.0.0.0
       - RUST_LOG=info
     ports:
@@ -268,9 +264,7 @@ RUST_LOG=debug cargo test
 - Set `SIGNER_PRIVATE_KEY` environment variable
 - Or use `--private-key` command line option
 
-**"Authentication failed"**
-- Check your API key matches the configured value
-- Use `X-API-Key` header or `Authorization: Bearer <key>`
+
 
 **"Failed to bind to address"**
 - Port might be in use by another process

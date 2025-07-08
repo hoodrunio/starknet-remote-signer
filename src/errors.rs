@@ -8,8 +8,7 @@ pub enum SignerError {
     #[error("Crypto error: {0}")]
     Crypto(String),
 
-    #[error("Authentication failed")]
-    Authentication,
+
 
     #[error("Invalid request: {0}")]
     InvalidRequest(String),

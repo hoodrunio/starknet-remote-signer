@@ -68,9 +68,7 @@ async fn start_server(args: StartArgs) -> Result<()> {
     config.validate()?;
 
     // Security warnings
-    if config.api_key.is_none() {
-        warn!("⚠️  No API key configured - authentication disabled! This is not recommended for production.");
-    }
+
 
     if !config.tls.enabled {
         warn!("⚠️  TLS disabled - communications are not encrypted! This is not recommended for production.");

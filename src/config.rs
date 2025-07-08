@@ -10,7 +10,6 @@ pub struct Config {
     pub server: ServerConfig,
     pub tls: TlsConfig,
     pub keystore: KeystoreConfig,
-    pub api_key: Option<String>,
     pub passphrase: Option<String>,
 }
 
@@ -54,7 +53,7 @@ impl Config {
                 env_var: Some(cli.env_var.unwrap_or_else(|| "SIGNER_PRIVATE_KEY".to_string())),
                 device: None,
             },
-            api_key: cli.api_key,
+
             passphrase: cli.passphrase,
         };
 
@@ -70,9 +69,7 @@ impl Config {
             if config.keystore.backend == "environment" && file_config.keystore.backend != "environment" {
                 config.keystore = file_config.keystore;
             }
-            if config.api_key.is_none() {
-                config.api_key = file_config.api_key;
-            }
+
             if config.passphrase.is_none() {
                 config.passphrase = file_config.passphrase;
             }

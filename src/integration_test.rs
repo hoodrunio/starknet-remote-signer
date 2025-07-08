@@ -29,7 +29,7 @@ mod integration_tests {
                 env_var: Some("TEST_PRIVATE_KEY".to_string()),
                 device: None,
             },
-            api_key: None,
+
             passphrase: None,
         };
 
@@ -181,7 +181,7 @@ mod integration_tests {
     async fn test_public_key_endpoint() {
         let server = create_test_server().await;
 
-        let response = server.get("/public_key").await;
+        let response = server.get("/get_public_key").await;
         assert_eq!(response.status_code(), 200);
 
         let key_response: serde_json::Value = response.json();

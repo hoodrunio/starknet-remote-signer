@@ -56,9 +56,7 @@ pub struct StartArgs {
     #[arg(long, env = "SIGNER_TLS_KEY")]
     pub tls_key: Option<String>,
 
-    /// API key for authentication
-    #[arg(long, env = "SIGNER_API_KEY")]
-    pub api_key: Option<String>,
+
 
     /// Log level
     #[arg(long, env = "RUST_LOG", default_value = "info")]

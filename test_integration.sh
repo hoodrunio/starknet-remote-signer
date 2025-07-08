@@ -66,7 +66,7 @@ fi
 
 # Test public key endpoint
 echo -e "\n${YELLOW}🔑 Testing public key endpoint...${NC}"
-PUBLIC_KEY_RESPONSE=$(curl -s http://localhost:$REMOTE_SIGNER_PORT/public_key)
+PUBLIC_KEY_RESPONSE=$(curl -s http://localhost:$REMOTE_SIGNER_PORT/get_public_key)
 if [[ $? -eq 0 ]]; then
     echo -e "${GREEN}✅ Public key endpoint working${NC}"
     echo "Public key response: $PUBLIC_KEY_RESPONSE"
