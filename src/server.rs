@@ -233,7 +233,7 @@ mod tests {
     async fn create_test_server() -> TestServer {
         let config = Config {
             server: crate::config::ServerConfig {
-                address: "127.0.0.1".to_string(),
+                address: "0.0.0.0".to_string(),
                 port: 3000,
             },
             tls: crate::config::TlsConfig {
