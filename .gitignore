@@ -19,7 +19,8 @@ Thumbs.db
 .env.local
 .env.production
 config.toml
-*.toml
+production.toml
+production-keystore.json
 
 # Keystore files
 keystore.json

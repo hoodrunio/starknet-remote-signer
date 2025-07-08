@@ -31,7 +31,7 @@ impl StarknetSigner {
     }
 
     /// Sign a transaction hash
-    pub async fn sign_transaction_hash(&self, transaction_hash: Felt) -> Result<[Felt; 2], SignerError> {
+    pub async fn sign_transaction_hash(&self, transaction_hash: Felt) -> Result<Vec<Felt>, SignerError> {
         debug!("Signing transaction hash: 0x{:x}", transaction_hash);
         
         let keystore = self.keystore.lock().await;
@@ -39,7 +39,7 @@ impl StarknetSigner {
         let signature = signing_key.sign(&transaction_hash)
             .map_err(|e| SignerError::Crypto(format!("Signing failed: {}", e)))?;
 
-        Ok([signature.r, signature.s])
+        Ok(vec![signature.r, signature.s])
     }
 
     /// Sign a full transaction (computes hash and signs)
@@ -47,7 +47,7 @@ impl StarknetSigner {
         &self, 
         transaction: &BroadcastedInvokeTransactionV3, 
         chain_id: Felt
-    ) -> Result<[Felt; 2], SignerError> {
+    ) -> Result<Vec<Felt>, SignerError> {
         let transaction_hash = compute_transaction_hash(transaction, chain_id)?;
         debug!("Computed transaction hash: 0x{:x}", transaction_hash);
         

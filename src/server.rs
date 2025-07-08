@@ -51,7 +51,7 @@ pub struct SignRequest {
 
 #[derive(Serialize)]
 pub struct SignResponse {
-    pub signature: [Felt; 2], // Exact starknet-attestation compatibility
+    pub signature: Vec<Felt>, // starknet-attestation main signer.rs compatibility
 }
 
 #[derive(Serialize, Deserialize)]

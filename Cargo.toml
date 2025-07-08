@@ -1,0 +1,63 @@
+[package]
+name = "starknet-remote-signer"
+version = "0.1.0"
+edition = "2021"
+description = "A secure remote signing service for Starknet validators"
+license = "Apache-2.0"
+authors = ["Starknet Remote Signer Team"]
+
+[dependencies]
+# Web framework
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+tokio = { version = "1.0", features = ["full"] }
+
+# Starknet & Crypto
+starknet = "0.15"
+starknet-crypto = "0.7"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Configuration & CLI
+clap = { version = "4.0", features = ["derive", "env"] }
+config = "0.14"
+toml = "0.8"
+
+# Logging & Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Security & Crypto
+rand = "0.8"
+hex = "0.4"
+aes-gcm = "0.10"
+pbkdf2 = "0.12"
+sha2 = "0.10"
+zeroize = { version = "1.8", features = ["derive"] }
+
+# Optional TLS support
+rustls = { version = "0.23", optional = true }
+tokio-rustls = { version = "0.26", optional = true }
+
+[dev-dependencies]
+axum-test = "15.0"
+tempfile = "3.0"
+
+[features]
+default = []
+tls = ["rustls", "tokio-rustls"]
+
+[lib]
+name = "starknet_remote_signer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "starknet-remote-signer"
+path = "src/main.rs"
