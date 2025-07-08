@@ -4,6 +4,20 @@ address = "0.0.0.0"  # Listen on all interfaces in prod
 port = 3000
 
 [security]
+# Chain restrictions - only allow specific chains
+allowed_chain_ids = ["SN_MAIN"]  # Only mainnet in production
+# allowed_chain_ids = ["SN_SEPOLIA"]  # For testnet deployment
+
+# IP allowlist - restrict to known attestation nodes
+allowed_ips = [
+    # "10.0.0.10",  # Example: attestation-node-1
+    # "10.0.0.11",  # Example: attestation-node-2
+]
+
+[audit]
+enabled = true
+log_path = "/var/log/starknet-signer/audit.log"
+rotate_daily = true
 
 [tls]
 enabled = false  # Optional - use reverse proxy instead
@@ -15,7 +29,7 @@ backend = "software"  # Most secure: encrypted file
 path = "./production-keystore.json"
 
 [logging]
-level = "debug"  # Info level is sufficient for production
+level = "info"  # Info level is sufficient for production
 
 [metrics]
 enabled = true

@@ -1,19 +1,19 @@
 use clap::Parser;
 
 pub mod config;
-pub mod server;
-pub mod signer;
 pub mod errors;
 pub mod keystore;
+pub mod server;
+pub mod signer;
+pub mod audit;
+pub mod security;
 
-// Re-export commonly used types
 pub use config::Config;
-pub use server::Server;
-pub use signer::StarknetSigner;
 pub use errors::SignerError;
 pub use keystore::Keystore;
+pub use server::Server;
+pub use signer::StarknetSigner;
 
-// CLI argument structures
 #[derive(Parser)]
 pub struct StartArgs {
     /// Configuration file path

@@ -7,7 +7,9 @@ mod integration_tests {
         BroadcastedInvokeTransactionV3, DataAvailabilityMode, ResourceBounds, ResourceBoundsMapping,
     };
     use crate::{Config, Server};
-    use crate::config::{ServerConfig, TlsConfig, KeystoreConfig};
+    use crate::config::{ServerConfig, TlsConfig, KeystoreConfig, SecurityConfig, AuditConfig};
+    use axum::extract::connect_info::MockConnectInfo;
+    use std::net::SocketAddr;
 
     async fn create_test_server() -> TestServer {
         // Set test private key in environment
@@ -29,12 +31,25 @@ mod integration_tests {
                 env_var: Some("TEST_PRIVATE_KEY".to_string()),
                 device: None,
             },
-
             passphrase: None,
+            security: SecurityConfig {
+                allowed_chain_ids: vec![],  // Allow all chains in tests
+                allowed_ips: vec![],        // Allow all IPs in tests  
+            },
+            audit: AuditConfig {
+                enabled: false,  // Disable audit logging in tests
+                log_path: "/tmp/test-audit.log".to_string(),  // Temporary path for tests
+                rotate_daily: false,
+            },
         };
 
         let server = Server::new(config).await.unwrap();
-        TestServer::new(server.create_router()).unwrap()
+        
+        // Add MockConnectInfo layer to provide SocketAddr in tests
+        let app = server.create_router()
+            .layer(MockConnectInfo(SocketAddr::from(([127, 0, 0, 1], 8080))));
+            
+        TestServer::new(app).unwrap()
     }
 
     #[tokio::test]

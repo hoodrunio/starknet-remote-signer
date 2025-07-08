@@ -11,6 +11,10 @@ pub struct Config {
     pub tls: TlsConfig,
     pub keystore: KeystoreConfig,
     pub passphrase: Option<String>,
+    #[serde(default)]
+    pub security: SecurityConfig,
+    #[serde(default)]
+    pub audit: AuditConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +38,42 @@ pub struct TlsConfig {
     pub key_file: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SecurityConfig {
+    /// Allowed chain IDs (e.g., "SN_MAIN", "SN_SEPOLIA")
+    pub allowed_chain_ids: Vec<String>,
+    /// Allowed IP addresses (empty = allow all)
+    pub allowed_ips: Vec<String>,
+}
+
+impl Default for SecurityConfig {
+    fn default() -> Self {
+        Self {
+            allowed_chain_ids: vec![],
+            allowed_ips: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AuditConfig {
+    pub enabled: bool,
+    pub log_path: String,
+    pub rotate_daily: bool,
+}
+
+impl Default for AuditConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            log_path: "/var/log/starknet-signer/audit.log".to_string(),
+            rotate_daily: true,
+        }
+    }
+}
+
 impl Config {
     pub fn load(cli: crate::StartArgs) -> Result<Self> {
         // Start with CLI values
@@ -53,8 +93,9 @@ impl Config {
                 env_var: Some(cli.env_var.unwrap_or_else(|| "SIGNER_PRIVATE_KEY".to_string())),
                 device: None,
             },
-
             passphrase: cli.passphrase,
+            security: SecurityConfig::default(),
+            audit: AuditConfig::default(),
         };
 
         // Load from config file if provided

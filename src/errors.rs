@@ -1,23 +1,30 @@
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Debug, Error)]
 pub enum SignerError {
     #[error("Configuration error: {0}")]
     Config(String),
-
-    #[error("Crypto error: {0}")]
+    
+    #[error("Invalid private key: {0}")]
+    InvalidKey(String),
+    
+    #[error("Keystore error: {0}")]
+    Keystore(String),
+    
+    #[error("Cryptography error: {0}")]
     Crypto(String),
-
-
-
-    #[error("Invalid request: {0}")]
-    InvalidRequest(String),
-
-    #[error("Internal server error: {0}")]
+    
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+    
+    #[error("Serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
+    
+    #[error("Internal error: {0}")]
     Internal(String),
-
-    #[error("TLS configuration error: {0}")]
-    Tls(String),
+    
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
 }
 
 impl From<anyhow::Error> for SignerError {
@@ -26,14 +33,4 @@ impl From<anyhow::Error> for SignerError {
     }
 }
 
-impl From<serde_json::Error> for SignerError {
-    fn from(err: serde_json::Error) -> Self {
-        SignerError::InvalidRequest(err.to_string())
-    }
-}
-
-impl From<hex::FromHexError> for SignerError {
-    fn from(err: hex::FromHexError) -> Self {
-        SignerError::Crypto(format!("Hex decode error: {}", err))
-    }
-} 
+ 

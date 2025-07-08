@@ -39,7 +39,7 @@ impl KeyMaterial {
     /// Create key material from a hex string
     pub fn from_hex(hex_key: &str) -> Result<Self, SignerError> {
         let key_felt = Felt::from_hex(hex_key)
-            .map_err(|e| SignerError::Crypto(format!("Invalid private key hex: {}", e)))?;
+                                .map_err(|e| SignerError::InvalidKey(format!("Invalid private key hex: {}", e)))?;
         
         let key_bytes = key_felt.to_bytes_be();
         
@@ -269,7 +269,7 @@ fn decrypt_key(keystore: &EncryptedKeystore, passphrase: &str) -> Result<[u8; 32
     derived_key.zeroize();
 
     if decrypted.len() != 32 {
-        return Err(SignerError::Crypto("Invalid decrypted key length".to_string()));
+                        return Err(SignerError::InvalidKey("Invalid decrypted key length".to_string()));
     }
 
     let mut key = [0u8; 32];
