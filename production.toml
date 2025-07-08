@@ -1,0 +1,22 @@
+# Production Configuration for Starknet Remote Signer
+[server]
+address = "0.0.0.0"  # Listen on all interfaces in prod
+port = 3000
+
+[security]
+
+[tls]
+enabled = false  # Optional - use reverse proxy instead
+# cert_file = "/path/to/your/cert.pem"
+# key_file = "/path/to/your/private-key.pem"
+
+[keystore]
+backend = "software"  # Most secure: encrypted file
+path = "./production-keystore.json"
+
+[logging]
+level = "debug"  # Info level is sufficient for production
+
+[metrics]
+enabled = true
+port = 9090  # Prometheus metrics port
