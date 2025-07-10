@@ -6,41 +6,49 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Keystore backend (environment for docker)
-      - SIGNER_KEYSTORE_BACKEND=environment
+      # Configuration file (mounted as volume)
+      - SIGNER_CONFIG=/app/config.toml
       
-      # Private key (for environment backend)
-      - SIGNER_PRIVATE_KEY=${SIGNER_PRIVATE_KEY}
-      
-      # For software backend (mount keystore file as volume)
+      # Keystore backend (software for production security)
       # - SIGNER_KEYSTORE_BACKEND=software
       # - SIGNER_KEYSTORE_PATH=/keystore/keystore.json
-      # - SIGNER_PASSPHRASE=${SIGNER_PASSPHRASE}
+      - SIGNER_PASSPHRASE=${SIGNER_PASSPHRASE}
       
-      # API key for authentication
-      - SIGNER_API_KEY=${SIGNER_API_KEY}
-      
-      # Server configuration
+      # Server configuration (overrides config file if needed)
       - SIGNER_ADDRESS=0.0.0.0
       - SIGNER_PORT=3000
       
       # Logging
       - RUST_LOG=info
       
-      # Optional: TLS (not implemented yet)
-      # - SIGNER_TLS=true
-      # - SIGNER_TLS_CERT=/certs/cert.pem
-      # - SIGNER_TLS_KEY=/certs/key.pem
+      # Security: Disable environment variable private key in production
+      # - SIGNER_PRIVATE_KEY=${SIGNER_PRIVATE_KEY}  # DO NOT USE IN PRODUCTION
       
-    # Uncomment for encrypted keystore mounting
-    # volumes:
-    #   - ./keystore.json:/keystore/keystore.json:ro
-    #   - ./certs:/certs:ro  # For TLS certificates
-    
+    volumes:
+      # Mount configuration file
+      - ./config.toml:/app/config.toml:ro
+      # Mount encrypted keystore file
+      - ./keystore.json:/app/keystore.json:ro
+      # Mount TLS certificates if needed
+      - ./certs:/certs:ro
+      # Mount audit logs directory
+      - ./logs:/var/log/starknet-signer:rw
+      
     restart: unless-stopped
     
     # Security: Run as non-root user
     user: "1000:1000"
+    
+    # Security: Additional restrictions
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    
+    # Temporary filesystem for /tmp
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
     
     # Health check
     healthcheck:
@@ -49,13 +57,37 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
 
-  # Optional: Add a monitoring container
+  # Production monitoring with Prometheus
   # prometheus:
   #   image: prom/prometheus:latest
   #   ports:
-  #     - "9090:9090"
+  #     - "127.0.0.1:9090:9090"  # Only bind to localhost
   #   volumes:
   #     - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus_data:/prometheus
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
+  #     - '--web.console.templates=/etc/prometheus/consoles'
+  #     - '--storage.tsdb.retention.time=30d'
+  #     - '--web.enable-lifecycle'
   #   depends_on:
-  #     - starknet-remote-signer 
+  #     - starknet-remote-signer
+  #   restart: unless-stopped
+  #   user: "nobody"
+
+# volumes:
+#   prometheus_data:
+#     driver: local

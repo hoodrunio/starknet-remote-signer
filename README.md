@@ -25,7 +25,21 @@ export SIGNER_PRIVATE_KEY="your_private_key_here"
 docker-compose up -d
 ```
 
-### Method 2: Using Encrypted Keystore (Production)
+### Method 2: Using Configuration File + Encrypted Keystore (Production)
+
+```bash
+# 1. Ensure config.toml and keystore.json files exist
+# config.toml: Contains server, security, audit, keystore configuration
+# keystore.json: Encrypted private key file
+
+# 2. Set passphrase for encrypted keystore
+export SIGNER_PASSPHRASE="your_secure_passphrase"
+
+# 3. Start with config file and encrypted keystore
+docker-compose up -d
+```
+
+### Method 3: Using CLI (Alternative)
 
 ```bash
 # 1. Create encrypted keystore
@@ -129,7 +143,6 @@ starknet-remote-signer start --help
 | `--passphrase` | `SIGNER_PASSPHRASE` | Passphrase for encrypted keystore | ✅ (for software) |
 | `--address` | `SIGNER_ADDRESS` | Bind address | ❌ (default: 127.0.0.1) |
 | `--port` | `SIGNER_PORT` | Bind port | ❌ (default: 3000) |
-
 | `--config` | `SIGNER_CONFIG` | Config file path | ❌ |
 | `--tls` | `SIGNER_TLS` | Enable TLS | ❌ |
 | `--tls-cert` | `SIGNER_TLS_CERT` | TLS certificate file | ❌ |
@@ -145,7 +158,7 @@ starknet-remote-signer start --help
 
 ### Configuration File
 
-Create a TOML configuration file:
+Create a `config.toml` file in your project root:
 
 ```toml
 [server]
@@ -159,11 +172,18 @@ key_file = "/path/to/key.pem"
 
 [keystore]
 backend = "software"  # "software", "environment", "hsm"
-path = "/path/to/keystore.json"  # For software backend
+path = "./keystore.json"  # For software backend
 env_var = "SIGNER_PRIVATE_KEY"   # For environment backend
 
+[security]
+# Chain restrictions - only allow specific chains
+allowed_chain_ids = ["SN_MAIN"]  # Only mainnet in production
+# allowed_ips = ["10.0.0.10", "10.0.0.11"]  # IP allowlist
 
-passphrase = "your_keystore_passphrase"  # For software backend
+[audit]
+enabled = true
+log_path = "/var/log/starknet-signer/audit.log"
+rotate_daily = true
 ```
 
 ## 🔒 Security Best Practices
@@ -193,17 +213,27 @@ services:
   starknet-remote-signer:
     build: .
     environment:
-      - SIGNER_PRIVATE_KEY=${SIGNER_PRIVATE_KEY}
+      # Configuration file (mounted as volume)
+      - SIGNER_CONFIG=/app/config.toml
+      # Keystore backend (software for production security)
+      # - SIGNER_KEYSTORE_BACKEND=software
+      # - SIGNER_KEYSTORE_PATH=/app/keystore.json
+      - SIGNER_PASSPHRASE=${SIGNER_PASSPHRASE}
       - SIGNER_ADDRESS=0.0.0.0
       - RUST_LOG=info
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+      - ./keystore.json:/app/keystore.json:ro
+      - ./logs:/var/log/starknet-signer:rw
     ports:
-      - "127.0.0.1:3000:3000"  # Only bind to localhost
+      - "3000:3000"  # Only bind to localhost
     restart: unless-stopped
     read_only: true
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
+    user: "1000:1000"
 ```
 
 ## 📊 Monitoring
@@ -261,10 +291,19 @@ RUST_LOG=debug cargo test
 ### Common Issues
 
 **"Private key is required"**
-- Set `SIGNER_PRIVATE_KEY` environment variable
-- Or use `--private-key` command line option
+- Set `SIGNER_PRIVATE_KEY` environment variable (for environment backend)
+- Or use encrypted keystore with `SIGNER_PASSPHRASE` (for software backend)
+- Ensure `config.toml` specifies correct keystore backend and path
 
+**"Keystore file does not exist"**
+- Ensure `keystore.json` file exists in project root
+- Check volume mount in `docker-compose.yml`: `./keystore.json:/app/keystore.json:ro`
+- Verify `config.toml` keystore path: `path = "./keystore.json"`
 
+**"Failed to read config file"**
+- Ensure `config.toml` file exists and is valid TOML format
+- Check `SIGNER_CONFIG` environment variable points to correct path
+- Verify Docker volume mount: `./config.toml:/app/config.toml:ro`
 
 **"Failed to bind to address"**
 - Port might be in use by another process

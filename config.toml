@@ -26,7 +26,7 @@ enabled = false  # Optional - use reverse proxy instead
 
 [keystore]
 backend = "software"  # Most secure: encrypted file
-path = "./production-keystore.json"
+path = "./keystore.json"
 
 [logging]
 level = "info"  # Info level is sufficient for production
