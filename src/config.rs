@@ -117,6 +117,10 @@ impl Config {
             if !config.tls.enabled && file_config.tls.enabled {
                 config.tls = file_config.tls;
             }
+            
+            // Always use config file values for security and audit (config file takes precedence)
+            config.security = file_config.security;
+            config.audit = file_config.audit;
         }
 
         Ok(config)
