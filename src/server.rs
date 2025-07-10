@@ -1,6 +1,6 @@
 use axum::{
     extract::{ConnectInfo, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::Json,
     routing::{get, post},
     Router,
@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use starknet::core::types::BroadcastedInvokeTransactionV3;
 use starknet_crypto::Felt;
-use std::net::SocketAddr;
+use std::net::{SocketAddr};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tower::ServiceBuilder;
@@ -20,16 +20,7 @@ use crate::config::Config;
 use crate::errors::SignerError;
 use crate::security::SecurityValidator;
 use crate::signer::{StarknetSigner, compute_transaction_hash};
-
-/// Helper function to validate IP address
-fn validate_ip_access(security: &Option<SecurityValidator>, addr: &SocketAddr) -> Result<(), StatusCode> {
-    if let Some(security) = security {
-        if let Err(_) = security.validate_ip(&addr.ip()) {
-            return Err(StatusCode::FORBIDDEN);
-        }
-    }
-    Ok(())
-}
+use crate::utils::{extract_real_ip, validate_ip_access};
 
 /// Shared application state
 #[derive(Clone)]
@@ -171,14 +162,19 @@ impl Server {
 async fn health_check(
     State(state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
 ) -> Result<Json<HealthResponse>, StatusCode> {
     // IP security check
-    if let Err(_) = validate_ip_access(&state.security, &addr) {
-        warn!("Rejected health check from unauthorized IP: {}", addr.ip());
-        return Err(StatusCode::FORBIDDEN);
-    }
+    let real_ip = match validate_ip_access(&state.security, &headers, &addr) {
+        Ok(ip) => ip,
+        Err(_) => {
+            warn!("Rejected health check from unauthorized IP: {}", extract_real_ip(&headers, &addr));
+            return Err(StatusCode::FORBIDDEN);
+        }
+    };
     
     state.metrics.health_checks.fetch_add(1, Ordering::Relaxed);
+    info!("Health check from {}", real_ip);
     
     let public_key = state.signer.public_key().await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -194,13 +190,18 @@ async fn health_check(
 async fn get_public_key(
     State(state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
 ) -> Result<Json<PublicKeyResponse>, StatusCode> {
     // IP security check
-    if let Err(_) = validate_ip_access(&state.security, &addr) {
-        warn!("Rejected public key request from unauthorized IP: {}", addr.ip());
-        return Err(StatusCode::FORBIDDEN);
-    }
+    let real_ip = match validate_ip_access(&state.security, &headers, &addr) {
+        Ok(ip) => ip,
+        Err(_) => {
+            warn!("Rejected public key request from unauthorized IP: {}", extract_real_ip(&headers, &addr));
+            return Err(StatusCode::FORBIDDEN);
+        }
+    };
     
+    info!("Public key requested from {}", real_ip);
     let public_key = state.signer.public_key().await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
@@ -211,14 +212,18 @@ async fn get_public_key(
 async fn sign_transaction(
     State(state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Json(request): Json<SignRequest>,
 ) -> Result<Json<SignResponse>, StatusCode> {
     let start_time = std::time::Instant::now();
     state.metrics.sign_requests.fetch_add(1, Ordering::Relaxed);
 
+    // Get real client IP
+    let real_ip = extract_real_ip(&headers, &addr);
+    
     // Create audit entry
     let mut audit_entry = if state.audit_logger.is_some() {
-        Some(AttestationAuditEntry::from_request(&request, &addr.ip().to_string(), start_time))
+        Some(AttestationAuditEntry::from_request(&request, &real_ip.to_string(), start_time))
     } else {
         None
     };
@@ -226,15 +231,15 @@ async fn sign_transaction(
     // Security checks
     if let Some(security) = &state.security {
         // Check IP allowlist
-        if let Err(_) = validate_ip_access(&Some(security.clone()), &addr) {
+        if let Err(_) = validate_ip_access(&Some(security.clone()), &headers, &addr) {
             if let Some(audit) = &mut audit_entry {
-                audit.set_error(format!("Unauthorized IP: {}", addr.ip()));
+                audit.set_error(format!("Unauthorized IP: {}", real_ip));
                 audit.update_duration(start_time);
                 if let Some(logger) = &state.audit_logger {
                     let _ = logger.log(audit).await;
                 }
             }
-            warn!("Rejected request from unauthorized IP: {}", addr.ip());
+            warn!("Rejected request from unauthorized IP: {}", real_ip);
             return Err(StatusCode::FORBIDDEN);
         }
 
@@ -254,7 +259,7 @@ async fn sign_transaction(
 
     info!(
         "Signing request from {} for sender: 0x{:x}, chain_id: 0x{:x}",
-        addr.ip(), request.transaction.sender_address, request.chain_id
+        real_ip, request.transaction.sender_address, request.chain_id
     );
 
     // Compute transaction hash for audit
@@ -293,7 +298,7 @@ async fn sign_transaction(
 
             info!(
                 "Transaction signed successfully for {} (tx_hash: 0x{:x})",
-                addr.ip(), tx_hash
+                real_ip, tx_hash
             );
             Ok(Json(SignResponse { signature }))
         }
@@ -317,13 +322,18 @@ async fn sign_transaction(
 async fn get_metrics(
     State(state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
 ) -> Result<Json<MetricsResponse>, StatusCode> {
     // IP security check
-    if let Err(_) = validate_ip_access(&state.security, &addr) {
-        warn!("Rejected metrics request from unauthorized IP: {}", addr.ip());
-        return Err(StatusCode::FORBIDDEN);
-    }
+    let real_ip = match validate_ip_access(&state.security, &headers, &addr) {
+        Ok(ip) => ip,
+        Err(_) => {
+            warn!("Rejected metrics request from unauthorized IP: {}", extract_real_ip(&headers, &addr));
+            return Err(StatusCode::FORBIDDEN);
+        }
+    };
     
+    info!("Metrics requested from {}", real_ip);
     Ok(Json(MetricsResponse {
         sign_requests: state.metrics.sign_requests.load(Ordering::Relaxed),
         sign_errors: state.metrics.sign_errors.load(Ordering::Relaxed),
