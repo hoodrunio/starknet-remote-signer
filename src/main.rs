@@ -67,9 +67,31 @@ async fn start_server(args: StartArgs) -> Result<()> {
     // Validate configuration
     config.validate()?;
 
+    // Log configuration details
+    info!("📊 Configuration loaded:");
+    info!("  Server: {}:{}", config.server.address, config.server.port);
+    info!("  Keystore backend: {}", config.keystore.backend);
+    
+    // Log security configuration
+    if !config.security.allowed_chain_ids.is_empty() {
+        info!("🔒 Allowed chains: [{}]", config.security.allowed_chain_ids.join(", "));
+    } else {
+        warn!("⚠️  No chain restrictions configured - all chains allowed!");
+    }
+    
+    if !config.security.allowed_ips.is_empty() {
+        info!("🔒 Allowed IPs: [{}]", config.security.allowed_ips.join(", "));
+    } else {
+        warn!("⚠️  No IP restrictions configured - all IPs allowed!");
+    }
+    
+    if config.audit.enabled {
+        info!("📝 Audit logging enabled: {}", config.audit.log_path);
+    } else {
+        warn!("⚠️  Audit logging disabled");
+    }
+
     // Security warnings
-
-
     if !config.tls.enabled {
         warn!("⚠️  TLS disabled - communications are not encrypted! This is not recommended for production.");
     }
