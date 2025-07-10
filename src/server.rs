@@ -21,6 +21,16 @@ use crate::errors::SignerError;
 use crate::security::SecurityValidator;
 use crate::signer::{StarknetSigner, compute_transaction_hash};
 
+/// Helper function to validate IP address
+fn validate_ip_access(security: &Option<SecurityValidator>, addr: &SocketAddr) -> Result<(), StatusCode> {
+    if let Some(security) = security {
+        if let Err(_) = security.validate_ip(&addr.ip()) {
+            return Err(StatusCode::FORBIDDEN);
+        }
+    }
+    Ok(())
+}
+
 /// Shared application state
 #[derive(Clone)]
 pub struct AppState {
@@ -158,7 +168,16 @@ impl Server {
 }
 
 /// Health check endpoint
-async fn health_check(State(state): State<AppState>) -> Result<Json<HealthResponse>, StatusCode> {
+async fn health_check(
+    State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> Result<Json<HealthResponse>, StatusCode> {
+    // IP security check
+    if let Err(_) = validate_ip_access(&state.security, &addr) {
+        warn!("Rejected health check from unauthorized IP: {}", addr.ip());
+        return Err(StatusCode::FORBIDDEN);
+    }
+    
     state.metrics.health_checks.fetch_add(1, Ordering::Relaxed);
     
     let public_key = state.signer.public_key().await
@@ -172,7 +191,16 @@ async fn health_check(State(state): State<AppState>) -> Result<Json<HealthRespon
 }
 
 /// Get public key endpoint
-async fn get_public_key(State(state): State<AppState>) -> Result<Json<PublicKeyResponse>, StatusCode> {
+async fn get_public_key(
+    State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> Result<Json<PublicKeyResponse>, StatusCode> {
+    // IP security check
+    if let Err(_) = validate_ip_access(&state.security, &addr) {
+        warn!("Rejected public key request from unauthorized IP: {}", addr.ip());
+        return Err(StatusCode::FORBIDDEN);
+    }
+    
     let public_key = state.signer.public_key().await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
@@ -198,9 +226,9 @@ async fn sign_transaction(
     // Security checks
     if let Some(security) = &state.security {
         // Check IP allowlist
-        if let Err(e) = security.validate_ip(&addr.ip()) {
+        if let Err(_) = validate_ip_access(&Some(security.clone()), &addr) {
             if let Some(audit) = &mut audit_entry {
-                audit.set_error(e.to_string());
+                audit.set_error(format!("Unauthorized IP: {}", addr.ip()));
                 audit.update_duration(start_time);
                 if let Some(logger) = &state.audit_logger {
                     let _ = logger.log(audit).await;
@@ -286,7 +314,16 @@ async fn sign_transaction(
 }
 
 /// Get metrics endpoint
-async fn get_metrics(State(state): State<AppState>) -> Result<Json<MetricsResponse>, StatusCode> {
+async fn get_metrics(
+    State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> Result<Json<MetricsResponse>, StatusCode> {
+    // IP security check
+    if let Err(_) = validate_ip_access(&state.security, &addr) {
+        warn!("Rejected metrics request from unauthorized IP: {}", addr.ip());
+        return Err(StatusCode::FORBIDDEN);
+    }
+    
     Ok(Json(MetricsResponse {
         sign_requests: state.metrics.sign_requests.load(Ordering::Relaxed),
         sign_errors: state.metrics.sign_errors.load(Ordering::Relaxed),
