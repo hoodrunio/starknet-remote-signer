@@ -195,6 +195,20 @@ impl Config {
                 }
 
                 // Platform check
+                #[cfg(target_env = "musl")]
+                {
+                    tracing::warn!("⚠️  MUSL target detected: OS keyring functionality is limited");
+                    tracing::warn!("⚠️  D-Bus integration is not available for static MUSL builds");
+                    tracing::warn!("💡 Recommended alternatives for MUSL deployments:");
+                    tracing::warn!("   - Use 'file' backend: backend = \"file\"");
+                    tracing::warn!("   - Use 'software' backend: backend = \"software\"");
+                    tracing::warn!("   - Use 'environment' backend: backend = \"environment\"");
+                    
+                    return Err(SignerError::Config(
+                        "OS keyring backend is not available on MUSL targets due to D-Bus limitations. Use file, software, or environment backend instead.".to_string(),
+                    ));
+                }
+
                 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
                 {
                     return Err(SignerError::Config(
@@ -202,11 +216,23 @@ impl Config {
                     ));
                 }
 
-                tracing::info!("📱 OS keyring backend configured");
-                tracing::info!(
-                    "🔐 Keys will be stored in system keyring with key name: '{}'",
-                    self.keystore.key_name.as_ref().unwrap()
-                );
+                #[cfg(all(target_os = "linux", not(target_env = "musl")))]
+                {
+                    tracing::info!("📱 OS keyring backend configured for Linux (with D-Bus support)");
+                    tracing::info!(
+                        "🔐 Keys will be stored in system keyring with key name: '{}'",
+                        self.keystore.key_name.as_ref().unwrap()
+                    );
+                }
+
+                #[cfg(target_os = "macos")]
+                {
+                    tracing::info!("📱 OS keyring backend configured for macOS");
+                    tracing::info!(
+                        "🔐 Keys will be stored in macOS Keychain with key name: '{}'",
+                        self.keystore.key_name.as_ref().unwrap()
+                    );
+                }
             }
             "hsm" => {
                 return Err(SignerError::Config(

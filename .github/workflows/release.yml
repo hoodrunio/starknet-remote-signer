@@ -80,13 +80,15 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Build
-      run: cargo build --release --target ${{ matrix.target }}
+    - name: Build      
       env:
+        # Add math library for MUSL targets
+        RUSTFLAGS: ${{ matrix.target == 'x86_64-unknown-linux-musl' && '-C link-arg=-lm' || '' }}
         # For cross-compilation, disable pkg-config to avoid conflicts
         PKG_CONFIG_ALLOW_CROSS: 1
         # For macOS cross-compilation, use the OpenSSL from Homebrew
         OPENSSL_STATIC: 1
+      run: cargo build --release --target ${{ matrix.target }}
 
     - name: Create archive
       shell: bash

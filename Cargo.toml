@@ -1,6 +1,6 @@
 [package]
 name = "starknet-remote-signer"
-version = "0.1.1"
+version = "0.1.0"
 edition = "2021"
 description = "A secure remote signing service for Starknet validators"
 license = "Apache-2.0"
@@ -55,13 +55,12 @@ rustls-pemfile = "2.0"
 axum-server = { version = "0.7", features = ["tls-rustls"] }
 
 # OS Keyring support - Cross-platform secure credential storage
-# apple-native: macOS/iOS Keychain
-# linux-native-sync-persistent: Linux keyutils + Secret Service combo (best Linux option)
-# windows-native: Windows Credential Manager
-# crypto-rust: Crypto support for Secret Service (avoids OpenSSL dependency)
+# Conditional compilation to avoid D-Bus issues with MUSL targets
+[target.'cfg(not(target_env = "musl"))'.dependencies]
 keyring = { version = "3.6.2", features = ["apple-native", "linux-native-sync-persistent", "crypto-rust"] }
 
-# Platform-specific keyring implementations are now handled by keyring crate features
+[target.'cfg(target_env = "musl")'.dependencies]
+keyring = { version = "3.6.2", features = ["apple-native", "crypto-rust"] }
 
 [dev-dependencies]
 axum-test = "17.3"

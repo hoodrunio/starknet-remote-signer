@@ -27,9 +27,39 @@ impl OsKeyringBackend {
         "starknet-signer"
     }
 
+    /// Check if keyring is available on this platform
+    fn check_keyring_availability() -> Result<(), SignerError> {
+        #[cfg(target_env = "musl")]
+        {
+            warn!("⚠️  MUSL target detected: OS keyring functionality is limited");
+            warn!("⚠️  D-Bus integration is not available for static MUSL builds");
+            warn!("⚠️  Consider using file or software backend for MUSL deployments");
+            return Err(SignerError::Config(
+                "OS keyring backend has limited functionality on MUSL targets due to D-Bus limitations. Use file or software backend instead.".to_string(),
+            ));
+        }
+
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        {
+            return Err(SignerError::Config(
+                "OS keyring backend is only supported on Linux and macOS".to_string(),
+            ));
+        }
+
+        #[cfg(all(target_os = "linux", not(target_env = "musl")))]
+        {
+            // Check if we have D-Bus available (required for linux-native-sync-persistent)
+            if std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err() {
+                warn!("⚠️  D-Bus session bus not available, keyring functionality may be limited");
+            }
+        }
+
+        Ok(())
+    }
+
     /// Store key in OS keyring
     fn store_key_in_keyring(&self, private_key_hex: &str) -> Result<(), SignerError> {
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_env = "musl")))]
         {
             use keyring::Entry;
 
@@ -68,6 +98,13 @@ impl OsKeyringBackend {
             Ok(())
         }
 
+        #[cfg(target_env = "musl")]
+        {
+            Err(SignerError::Config(
+                "OS keyring backend is not available on MUSL targets due to D-Bus limitations".to_string(),
+            ))
+        }
+
         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         {
             Err(SignerError::Config(
@@ -78,7 +115,7 @@ impl OsKeyringBackend {
 
     /// Load key from OS keyring
     fn load_key_from_keyring(&mut self) -> Result<(), SignerError> {
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_env = "musl")))]
         {
             use keyring::Entry;
 
@@ -113,6 +150,13 @@ impl OsKeyringBackend {
             Ok(())
         }
 
+        #[cfg(target_env = "musl")]
+        {
+            Err(SignerError::Config(
+                "OS keyring backend is not available on MUSL targets due to D-Bus limitations".to_string(),
+            ))
+        }
+
         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         {
             Err(SignerError::Config(
@@ -123,7 +167,7 @@ impl OsKeyringBackend {
 
     /// Check if key exists in keyring
     fn key_exists_in_keyring(&self) -> bool {
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_env = "musl")))]
         {
             use keyring::Entry;
 
@@ -134,7 +178,7 @@ impl OsKeyringBackend {
             }
         }
 
-        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        #[cfg(any(target_env = "musl", not(any(target_os = "linux", target_os = "macos"))))]
         {
             false
         }
@@ -142,7 +186,7 @@ impl OsKeyringBackend {
 
     /// Delete key from keyring
     fn delete_key_from_keyring(&self) -> Result<(), SignerError> {
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_env = "musl")))]
         {
             use keyring::Entry;
 
@@ -178,32 +222,11 @@ impl OsKeyringBackend {
             Ok(())
         }
 
-        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        #[cfg(target_env = "musl")]
         {
             Err(SignerError::Config(
-                "OS keyring backend is only supported on Linux and macOS".to_string(),
+                "OS keyring backend is not available on MUSL targets due to D-Bus limitations".to_string(),
             ))
-        }
-    }
-
-    /// Check OS keyring availability
-    fn check_keyring_availability() -> Result<(), SignerError> {
-        #[cfg(target_os = "linux")]
-        {
-            // Check if we're in a desktop session or have access to D-Bus
-            if std::env::var("XDG_RUNTIME_DIR").is_err()
-                && std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err()
-            {
-                warn!("⚠️  No desktop session detected. OS keyring may not be available.");
-                warn!("⚠️  Consider running in a user session or using a different backend.");
-            }
-            Ok(())
-        }
-
-        #[cfg(target_os = "macos")]
-        {
-            // macOS keychain should always be available
-            Ok(())
         }
 
         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
@@ -244,12 +267,12 @@ impl KeystoreBackend for OsKeyringBackend {
     }
 
     fn is_available(&self) -> bool {
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_env = "musl")))]
         {
             Self::check_keyring_availability().is_ok() && self.key_exists_in_keyring()
         }
 
-        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        #[cfg(any(target_env = "musl", not(any(target_os = "linux", target_os = "macos"))))]
         {
             false
         }
@@ -260,43 +283,12 @@ impl KeystoreBackend for OsKeyringBackend {
     }
 
     fn validate_config(&self) -> Result<(), SignerError> {
-        Self::check_keyring_availability()?;
-
-        if self.key_name.is_empty() {
-            return Err(SignerError::Config("Key name cannot be empty".to_string()));
-        }
-
-        // Additional platform-specific warnings
-        #[cfg(target_os = "linux")]
-        {
-            info!("OS Keyring: Using Linux Secret Service (GNOME Keyring/KDE Wallet)");
-            info!(
-                "Service: '{}', Key: '{}'",
-                Self::service_name(),
-                self.key_name
-            );
-            if std::env::var("XDG_RUNTIME_DIR").is_err() {
-                warn!("XDG_RUNTIME_DIR not set - keyring may not be accessible");
-            }
-        }
-
-        #[cfg(target_os = "macos")]
-        {
-            info!("OS Keyring: Using macOS Keychain");
-            info!(
-                "Service: '{}', Key: '{}'",
-                Self::service_name(),
-                self.key_name
-            );
-        }
-
-        Ok(())
+        Self::check_keyring_availability()
     }
 
     async fn delete_key(&self) -> Result<(), SignerError> {
         Self::check_keyring_availability()?;
-        self.delete_key_from_keyring()?;
-        Ok(())
+        self.delete_key_from_keyring()
     }
 }
 
