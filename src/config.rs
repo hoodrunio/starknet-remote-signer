@@ -42,22 +42,13 @@ pub struct TlsConfig {
     pub key_file: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct SecurityConfig {
     /// Allowed chain IDs (e.g., "SN_MAIN", "SN_SEPOLIA")
     pub allowed_chain_ids: Vec<String>,
     /// Allowed IP addresses (empty = allow all)
     pub allowed_ips: Vec<String>,
-}
-
-impl Default for SecurityConfig {
-    fn default() -> Self {
-        Self {
-            allowed_chain_ids: vec![],
-            allowed_ips: vec![],
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,10 +102,10 @@ impl Config {
         // Load from config file if provided
         if let Some(config_path) = cli.config {
             let config_content = fs::read_to_string(&config_path)
-                .map_err(|e| SignerError::Config(format!("Failed to read config file {}: {}", config_path, e)))?;
+                .map_err(|e| SignerError::Config(format!("Failed to read config file {config_path}: {e}")))?;
             
             let file_config: Config = toml::from_str(&config_content)
-                .map_err(|e| SignerError::Config(format!("Failed to parse config file: {}", e)))?;
+                .map_err(|e| SignerError::Config(format!("Failed to parse config file: {e}")))?;
 
             // Config file values override CLI defaults, but explicit CLI args override config file
             // For server config, use config file values if they match CLI defaults
@@ -224,7 +215,7 @@ impl Config {
             if let Some(cert_file) = &self.tls.cert_file {
                 if !std::path::Path::new(cert_file).exists() {
                     return Err(SignerError::Config(
-                        format!("TLS certificate file not found: {}", cert_file)
+                        format!("TLS certificate file not found: {cert_file}")
                     ));
                 }
             }
@@ -232,7 +223,7 @@ impl Config {
             if let Some(key_file) = &self.tls.key_file {
                 if !std::path::Path::new(key_file).exists() {
                     return Err(SignerError::Config(
-                        format!("TLS key file not found: {}", key_file)
+                        format!("TLS key file not found: {key_file}")
                     ));
                 }
             }
@@ -281,7 +272,7 @@ impl Config {
                 let passphrase = get_passphrase_securely(
                     self.passphrase.clone(),
                     "Enter keystore passphrase: "
-                ).map_err(|e| SignerError::Config(format!("Failed to get passphrase: {}", e)))?;
+                ).map_err(|e| SignerError::Config(format!("Failed to get passphrase: {e}")))?;
                 Ok(Some(passphrase))
             }
             _ => Ok(None), // Other backends don't need passphrase
@@ -336,6 +327,6 @@ impl Config {
             }
         };
 
-        Ok(Keystore::new(backend)?)
+        Keystore::new(backend)
     }
 } 

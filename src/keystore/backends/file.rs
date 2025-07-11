@@ -59,25 +59,25 @@ impl FileBackend {
 
     /// Get the key file path for a given key name
     fn key_file_path(&self, key_name: &str) -> PathBuf {
-        self.keystore_dir.join(format!("{}.key", key_name))
+        self.keystore_dir.join(format!("{key_name}.key"))
     }
 
     /// Create keystore directory if it doesn't exist
     fn ensure_directory_exists(&self) -> Result<(), SignerError> {
         if !self.keystore_dir.exists() {
             fs::create_dir_all(&self.keystore_dir)
-                .map_err(|e| SignerError::Config(format!("Failed to create keystore directory: {}", e)))?;
+                .map_err(|e| SignerError::Config(format!("Failed to create keystore directory: {e}")))?;
             
             // Set restrictive permissions (Unix only)
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
                 let mut perms = fs::metadata(&self.keystore_dir)
-                    .map_err(|e| SignerError::Config(format!("Failed to get directory metadata: {}", e)))?
+                    .map_err(|e| SignerError::Config(format!("Failed to get directory metadata: {e}")))?
                     .permissions();
                 perms.set_mode(0o700); // rwx------
                 fs::set_permissions(&self.keystore_dir, perms)
-                    .map_err(|e| SignerError::Config(format!("Failed to set directory permissions: {}", e)))?;
+                    .map_err(|e| SignerError::Config(format!("Failed to set directory permissions: {e}")))?;
             }
             
             info!("Created keystore directory: {}", self.keystore_dir.display());
@@ -91,10 +91,10 @@ impl FileBackend {
         
         if metadata_path.exists() {
             let data = fs::read(&metadata_path)
-                .map_err(|e| SignerError::Config(format!("Failed to read metadata: {}", e)))?;
+                .map_err(|e| SignerError::Config(format!("Failed to read metadata: {e}")))?;
             
             serde_json::from_slice(&data)
-                .map_err(|e| SignerError::Config(format!("Failed to parse metadata: {}", e)))
+                .map_err(|e| SignerError::Config(format!("Failed to parse metadata: {e}")))
         } else {
             // Create new metadata
             let metadata = KeystoreMetadata {
@@ -113,21 +113,21 @@ impl FileBackend {
     fn save_metadata(&self, metadata: &KeystoreMetadata) -> Result<(), SignerError> {
         let metadata_path = self.metadata_path();
         let data = serde_json::to_string_pretty(metadata)
-            .map_err(|e| SignerError::Config(format!("Failed to serialize metadata: {}", e)))?;
+            .map_err(|e| SignerError::Config(format!("Failed to serialize metadata: {e}")))?;
         
         fs::write(&metadata_path, data)
-            .map_err(|e| SignerError::Config(format!("Failed to write metadata: {}", e)))?;
+            .map_err(|e| SignerError::Config(format!("Failed to write metadata: {e}")))?;
         
         // Set restrictive permissions (Unix only)
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             let mut perms = fs::metadata(&metadata_path)
-                .map_err(|e| SignerError::Config(format!("Failed to get metadata file metadata: {}", e)))?
+                .map_err(|e| SignerError::Config(format!("Failed to get metadata file metadata: {e}")))?
                 .permissions();
             perms.set_mode(0o600); // rw-------
             fs::set_permissions(&metadata_path, perms)
-                .map_err(|e| SignerError::Config(format!("Failed to set metadata file permissions: {}", e)))?;
+                .map_err(|e| SignerError::Config(format!("Failed to set metadata file permissions: {e}")))?;
         }
         
         Ok(())
@@ -181,7 +181,7 @@ impl FileBackend {
         let key_path = self.key_file_path(key_name);
         
         let jwe_token = fs::read_to_string(&key_path)
-            .map_err(|e| SignerError::Config(format!("Failed to read key file {}: {}", key_name, e)))?;
+            .map_err(|e| SignerError::Config(format!("Failed to read key file {key_name}: {e}")))?;
 
         let decrypted_key = decrypt_key(&jwe_token, password)?;
         Ok(KeyMaterial::from_bytes(decrypted_key))
@@ -194,18 +194,18 @@ impl FileBackend {
         let jwe_token = encrypt_key(key_material.raw_bytes(), password)?;
 
         fs::write(&key_path, &jwe_token)
-            .map_err(|e| SignerError::Config(format!("Failed to write key file {}: {}", key_name, e)))?;
+            .map_err(|e| SignerError::Config(format!("Failed to write key file {key_name}: {e}")))?;
 
         // Set restrictive permissions (Unix only)
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             let mut perms = fs::metadata(&key_path)
-                .map_err(|e| SignerError::Config(format!("Failed to get key file metadata: {}", e)))?
+                .map_err(|e| SignerError::Config(format!("Failed to get key file metadata: {e}")))?
                 .permissions();
             perms.set_mode(0o600); // rw-------
             fs::set_permissions(&key_path, perms)
-                .map_err(|e| SignerError::Config(format!("Failed to set key file permissions: {}", e)))?;
+                .map_err(|e| SignerError::Config(format!("Failed to set key file permissions: {e}")))?;
         }
 
         info!("Saved key '{}' to file keystore", key_name);
@@ -269,7 +269,7 @@ impl FileBackend {
         
         if key_path.exists() {
             fs::remove_file(&key_path)
-                .map_err(|e| SignerError::Config(format!("Failed to delete key file {}: {}", key_name, e)))?;
+                .map_err(|e| SignerError::Config(format!("Failed to delete key file {key_name}: {e}")))?;
         }
         
         self.remove_key_from_metadata(key_name)?;
@@ -350,7 +350,7 @@ impl KeystoreBackend for FileBackend {
 
         let key_name = self.get_active_key_name()?;
         self.keys.get(&key_name)
-            .ok_or_else(|| SignerError::Config(format!("Key '{}' not found", key_name)))
+            .ok_or_else(|| SignerError::Config(format!("Key '{key_name}' not found")))
             .map(|km| KeyMaterial::from_bytes(*km.raw_bytes()))
     }
 

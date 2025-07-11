@@ -57,10 +57,10 @@ impl AttestationAuditEntry {
         // [3]: "0x1" (calldata length)
         // [4]: block hash being attested
         let attestation_contract = request.transaction.calldata.get(1)
-            .map(|f| format!("{:#x}", f));
+            .map(|f| format!("{f:#x}"));
             
         let attested_block_hash = request.transaction.calldata.get(4)
-            .map(|f| format!("{:#x}", f));
+            .map(|f| format!("{f:#x}"));
         
         Self {
             timestamp: Utc::now(),
@@ -81,7 +81,7 @@ impl AttestationAuditEntry {
     }
     
     pub fn set_transaction_hash(&mut self, tx_hash: Felt) {
-        self.tx_hash = format!("{:#x}", tx_hash);
+        self.tx_hash = format!("{tx_hash:#x}");
     }
     
     pub fn set_signature(&mut self, signature: &[Felt]) {
@@ -116,15 +116,15 @@ impl AuditLogger {
         // Create directory if it doesn't exist
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
-                .map_err(|e| SignerError::Internal(format!("Failed to create audit log directory: {}", e)))?;
+                .map_err(|e| SignerError::Internal(format!("Failed to create audit log directory: {e}")))?;
         }
         
         // Open file in append mode
         let file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&path)
-            .map_err(|e| SignerError::Internal(format!("Failed to open audit log file: {}", e)))?;
+            .open(path)
+            .map_err(|e| SignerError::Internal(format!("Failed to open audit log file: {e}")))?;
         
         Ok(Self {
             file: Arc::new(Mutex::new(file)),
@@ -133,13 +133,13 @@ impl AuditLogger {
     
     pub async fn log(&self, entry: &AttestationAuditEntry) -> Result<(), SignerError> {
         let json = serde_json::to_string(entry)
-            .map_err(|e| SignerError::Internal(format!("Failed to serialize audit entry: {}", e)))?;
+            .map_err(|e| SignerError::Internal(format!("Failed to serialize audit entry: {e}")))?;
         
         let mut file = self.file.lock().await;
-        writeln!(file, "{}", json)
-            .map_err(|e| SignerError::Internal(format!("Failed to write audit log: {}", e)))?;
+        writeln!(file, "{json}")
+            .map_err(|e| SignerError::Internal(format!("Failed to write audit log: {e}")))?;
         file.flush()
-            .map_err(|e| SignerError::Internal(format!("Failed to flush audit log: {}", e)))?;
+            .map_err(|e| SignerError::Internal(format!("Failed to flush audit log: {e}")))?;
         
         Ok(())
     }

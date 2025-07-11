@@ -34,10 +34,10 @@ impl TlsManager {
 
         // Validate that files exist
         if !std::path::Path::new(cert_file).exists() {
-            return Err(SignerError::Config(format!("TLS certificate file not found: {}", cert_file)));
+            return Err(SignerError::Config(format!("TLS certificate file not found: {cert_file}")));
         }
         if !std::path::Path::new(key_file).exists() {
-            return Err(SignerError::Config(format!("TLS key file not found: {}", key_file)));
+            return Err(SignerError::Config(format!("TLS key file not found: {key_file}")));
         }
 
         info!("Loading TLS configuration from {} and {}", cert_file, key_file);
@@ -45,7 +45,7 @@ impl TlsManager {
         // Create TLS config using axum-server
         let tls_config = axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_file, key_file)
             .await
-            .map_err(|e| SignerError::Config(format!("Failed to load TLS config: {}", e)))?;
+            .map_err(|e| SignerError::Config(format!("Failed to load TLS config: {e}")))?;
 
         Ok(tls_config)
     }
@@ -65,7 +65,7 @@ impl TlsManager {
         axum_server::bind_rustls(addr, tls_config)
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await
-            .map_err(|e| SignerError::Internal(format!("TLS server error: {}", e)))?;
+            .map_err(|e| SignerError::Internal(format!("TLS server error: {e}")))?;
 
         Ok(())
     }
@@ -76,13 +76,13 @@ impl TlsManager {
         addr: SocketAddr,
     ) -> Result<(), SignerError> {
         let listener = tokio::net::TcpListener::bind(addr).await
-            .map_err(|e| SignerError::Internal(format!("Failed to bind to {}: {}", addr, e)))?;
+            .map_err(|e| SignerError::Internal(format!("Failed to bind to {addr}: {e}")))?;
 
         info!("✅ Server ready - accepting connections (HTTP only) on {}", addr);
 
         axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
             .await
-            .map_err(|e| SignerError::Internal(format!("Server error: {}", e)))?;
+            .map_err(|e| SignerError::Internal(format!("Server error: {e}")))?;
 
         Ok(())
     }

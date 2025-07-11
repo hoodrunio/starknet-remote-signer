@@ -34,18 +34,18 @@ impl SoftwareBackend {
         let jwe_token = encrypt_key(key_material.raw_bytes(), passphrase)?;
 
         fs::write(keystore_path, &jwe_token)
-            .map_err(|e| SignerError::Config(format!("Failed to write keystore: {}", e)))?;
+            .map_err(|e| SignerError::Config(format!("Failed to write keystore: {e}")))?;
 
         // Set restrictive permissions (Unix only)
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             let mut perms = fs::metadata(keystore_path)
-                .map_err(|e| SignerError::Config(format!("Failed to get keystore metadata: {}", e)))?
+                .map_err(|e| SignerError::Config(format!("Failed to get keystore metadata: {e}")))?
                 .permissions();
             perms.set_mode(0o600); // rw-------
             fs::set_permissions(keystore_path, perms)
-                .map_err(|e| SignerError::Config(format!("Failed to set keystore permissions: {}", e)))?;
+                .map_err(|e| SignerError::Config(format!("Failed to set keystore permissions: {e}")))?;
         }
 
         info!("Created encrypted keystore at: {}", keystore_path);
@@ -55,7 +55,7 @@ impl SoftwareBackend {
     /// Load encrypted software key
     async fn load_software_key(&mut self, passphrase: &str) -> Result<(), SignerError> {
         let jwe_token = fs::read_to_string(&self.keystore_path)
-            .map_err(|e| SignerError::Config(format!("Failed to read keystore: {}", e)))?;
+            .map_err(|e| SignerError::Config(format!("Failed to read keystore: {e}")))?;
 
         let decrypted_key = decrypt_key(&jwe_token, passphrase)?;
         self.key_material = Some(KeyMaterial::from_bytes(decrypted_key));
@@ -118,7 +118,7 @@ impl KeystoreBackend for SoftwareBackend {
 
         // Check if file is readable
         fs::metadata(&self.keystore_path)
-            .map_err(|e| SignerError::Config(format!("Cannot access keystore file: {}", e)))?;
+            .map_err(|e| SignerError::Config(format!("Cannot access keystore file: {e}")))?;
 
         Ok(())
     }

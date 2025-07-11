@@ -5,7 +5,6 @@ use crate::{Keystore, keystore::{BackendConfig, KeyMaterial}, AddKeyArgs, Delete
 use crate::utils::{prompt_for_passphrase_with_confirmation};
 
 /// Key management module - handles add, delete, and list operations for keystores
-
 pub async fn add_key(args: AddKeyArgs) -> Result<()> {
     info!("Adding key '{}' to {} backend", args.key_name, args.backend);
 

@@ -26,17 +26,17 @@ impl SecurityValidator {
                 "SN_MAIN" => {
                     // Cairo short string for "SN_MAIN"
                     Felt::from_hex("0x534e5f4d41494e")
-                        .map_err(|e| SignerError::Config(format!("Invalid chain ID: {}", e)))?
+                        .map_err(|e| SignerError::Config(format!("Invalid chain ID: {e}")))?
                 }
                 "SN_SEPOLIA" => {
                     // Cairo short string for "SN_SEPOLIA"
                     Felt::from_hex("0x534e5f5345504f4c4941")
-                        .map_err(|e| SignerError::Config(format!("Invalid chain ID: {}", e)))?
+                        .map_err(|e| SignerError::Config(format!("Invalid chain ID: {e}")))?
                 }
                 _ => {
                     // Try to parse as hex
                     Felt::from_hex(&chain_id)
-                        .map_err(|e| SignerError::Config(format!("Invalid chain ID {}: {}", chain_id, e)))?
+                        .map_err(|e| SignerError::Config(format!("Invalid chain ID {chain_id}: {e}")))?
                 }
             };
             chain_ids_hex.insert(felt_id);
@@ -46,7 +46,7 @@ impl SecurityValidator {
         let mut ips = HashSet::new();
         for ip_str in allowed_ips {
             let ip: IpAddr = ip_str.parse()
-                .map_err(|_| SignerError::Config(format!("Invalid IP address: {}", ip_str)))?;
+                .map_err(|_| SignerError::Config(format!("Invalid IP address: {ip_str}")))?;
             ips.insert(ip);
         }
         
@@ -65,7 +65,7 @@ impl SecurityValidator {
         
         if !self.allowed_ips.contains(ip) {
             return Err(SignerError::Unauthorized(format!(
-                "IP address {} is not allowed", ip
+                "IP address {ip} is not allowed"
             )));
         }
         
@@ -91,7 +91,7 @@ impl SecurityValidator {
         }
         
         Err(SignerError::Unauthorized(format!(
-            "Chain ID {} is not allowed", chain_id
+            "Chain ID {chain_id} is not allowed"
         )))
     }
 }

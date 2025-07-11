@@ -115,7 +115,7 @@ impl Server {
 
         let addr = SocketAddr::new(
             self.config.server.address.parse()
-                .map_err(|e| SignerError::Config(format!("Invalid bind address: {}", e)))?,
+                .map_err(|e| SignerError::Config(format!("Invalid bind address: {e}")))?,
             self.config.server.port,
         );
 
@@ -226,9 +226,9 @@ async fn sign_transaction(
 
     // Security checks
         // Check IP allowlist
-    if let Err(_) = validate_ip_access(&state.security, &headers, &addr) {
+    if validate_ip_access(&state.security, &headers, &addr).is_err() {
             if let Some(audit) = &mut audit_entry {
-                audit.set_error(format!("Unauthorized IP: {}", real_ip));
+                audit.set_error(format!("Unauthorized IP: {real_ip}"));
                 audit.update_duration(start_time);
                 if let Some(logger) = &state.audit_logger {
                     let _ = logger.log(audit).await;
@@ -266,7 +266,7 @@ async fn sign_transaction(
         }
         Err(e) => {
             if let Some(audit) = &mut audit_entry {
-                audit.set_error(format!("Failed to compute tx hash: {}", e));
+                audit.set_error(format!("Failed to compute tx hash: {e}"));
                 audit.update_duration(start_time);
                 if let Some(logger) = &state.audit_logger {
                     let _ = logger.log(audit).await;
@@ -299,7 +299,7 @@ async fn sign_transaction(
         }
         Err(e) => {
             if let Some(audit) = &mut audit_entry {
-                audit.set_error(format!("Signing failed: {}", e));
+                audit.set_error(format!("Signing failed: {e}"));
                 audit.update_duration(start_time);
                 if let Some(logger) = &state.audit_logger {
                     let _ = logger.log(audit).await;

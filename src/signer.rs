@@ -34,7 +34,7 @@ impl StarknetSigner {
         
         let signing_key = self.keystore.signing_key().await?;
         let signature = signing_key.sign(&transaction_hash)
-            .map_err(|e| SignerError::Crypto(format!("Signing failed: {}", e)))?;
+            .map_err(|e| SignerError::Crypto(format!("Signing failed: {e}")))?;
 
         Ok(vec![signature.r, signature.s])
     }

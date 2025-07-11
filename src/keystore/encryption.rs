@@ -16,11 +16,11 @@ pub fn encrypt_key(private_key: &[u8; 32], passphrase: &str) -> Result<Encrypted
     
     // Create encrypter from password
     let encrypter = PBES2_HS256_A128KW.encrypter_from_bytes(passphrase.as_bytes())
-        .map_err(|e| SignerError::Crypto(format!("Failed to create encrypter: {}", e)))?;
+        .map_err(|e| SignerError::Crypto(format!("Failed to create encrypter: {e}")))?;
 
     // Encrypt the private key data
     let jwe_token = josekit::jwe::serialize_compact(private_key, &header, &encrypter)
-        .map_err(|e| SignerError::Crypto(format!("Encryption failed: {}", e)))?;
+        .map_err(|e| SignerError::Crypto(format!("Encryption failed: {e}")))?;
 
     Ok(jwe_token)
 }
@@ -29,11 +29,11 @@ pub fn encrypt_key(private_key: &[u8; 32], passphrase: &str) -> Result<Encrypted
 pub fn decrypt_key(jwe_token: &str, passphrase: &str) -> Result<[u8; 32], SignerError> {
     // Create decrypter from password
     let decrypter = PBES2_HS256_A128KW.decrypter_from_bytes(passphrase.as_bytes())
-        .map_err(|e| SignerError::Crypto(format!("Failed to create decrypter: {}", e)))?;
+        .map_err(|e| SignerError::Crypto(format!("Failed to create decrypter: {e}")))?;
 
     // Decrypt the JWE token
     let (decrypted_data, _header) = josekit::jwe::deserialize_compact(jwe_token, &decrypter)
-        .map_err(|e| SignerError::Crypto(format!("Decryption failed: {}", e)))?;
+        .map_err(|e| SignerError::Crypto(format!("Decryption failed: {e}")))?;
 
     // Ensure the decrypted data is the correct length
     if decrypted_data.len() != 32 {

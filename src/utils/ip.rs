@@ -75,7 +75,7 @@ pub fn validate_ip_access(
 ) -> Result<IpAddr, StatusCode> {
     let real_ip = extract_real_ip(headers, connect_info);
     
-        if let Err(_) = security.validate_ip(&real_ip) {
+        if security.validate_ip(&real_ip).is_err() {
             return Err(StatusCode::FORBIDDEN);
         }
     

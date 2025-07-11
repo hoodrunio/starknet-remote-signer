@@ -35,7 +35,7 @@ impl KeyMaterial {
         
         // Fallback to Felt parsing for other formats
         let key_felt = Felt::from_hex(hex_key)
-            .map_err(|e| SignerError::InvalidKey(format!("Invalid private key hex: {}", e)))?;
+            .map_err(|e| SignerError::InvalidKey(format!("Invalid private key hex: {e}")))?;
         
         let key_bytes = key_felt.to_bytes_be();
         
