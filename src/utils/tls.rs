@@ -1,5 +1,5 @@
-use std::net::SocketAddr;
 use axum::Router;
+use std::net::SocketAddr;
 use tracing::info;
 
 use crate::config::TlsConfig;
@@ -22,25 +22,39 @@ impl TlsManager {
     }
 
     /// Load TLS configuration from certificate and key files
-    pub async fn load_tls_config(&self) -> Result<axum_server::tls_rustls::RustlsConfig, SignerError> {
+    pub async fn load_tls_config(
+        &self,
+    ) -> Result<axum_server::tls_rustls::RustlsConfig, SignerError> {
         if !self.config.enabled {
             return Err(SignerError::Config("TLS is not enabled".to_string()));
         }
 
-        let cert_file = self.config.cert_file.as_ref()
-            .ok_or_else(|| SignerError::Config("TLS certificate file not specified".to_string()))?;
-        let key_file = self.config.key_file.as_ref()
+        let cert_file =
+            self.config.cert_file.as_ref().ok_or_else(|| {
+                SignerError::Config("TLS certificate file not specified".to_string())
+            })?;
+        let key_file = self
+            .config
+            .key_file
+            .as_ref()
             .ok_or_else(|| SignerError::Config("TLS key file not specified".to_string()))?;
 
         // Validate that files exist
         if !std::path::Path::new(cert_file).exists() {
-            return Err(SignerError::Config(format!("TLS certificate file not found: {cert_file}")));
+            return Err(SignerError::Config(format!(
+                "TLS certificate file not found: {cert_file}"
+            )));
         }
         if !std::path::Path::new(key_file).exists() {
-            return Err(SignerError::Config(format!("TLS key file not found: {key_file}")));
+            return Err(SignerError::Config(format!(
+                "TLS key file not found: {key_file}"
+            )));
         }
 
-        info!("Loading TLS configuration from {} and {}", cert_file, key_file);
+        info!(
+            "Loading TLS configuration from {} and {}",
+            cert_file, key_file
+        );
 
         // Create TLS config using axum-server
         let tls_config = axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_file, key_file)
@@ -51,11 +65,7 @@ impl TlsManager {
     }
 
     /// Start TLS server with the given router and address
-    pub async fn serve_tls(
-        &self,
-        app: Router,
-        addr: SocketAddr,
-    ) -> Result<(), SignerError> {
+    pub async fn serve_tls(&self, app: Router, addr: SocketAddr) -> Result<(), SignerError> {
         let tls_config = self.load_tls_config().await?;
 
         info!("🔒 TLS enabled");
@@ -71,18 +81,22 @@ impl TlsManager {
     }
 
     /// Start non-TLS server with the given router and address
-    pub async fn serve_http(
-        app: Router,
-        addr: SocketAddr,
-    ) -> Result<(), SignerError> {
-        let listener = tokio::net::TcpListener::bind(addr).await
+    pub async fn serve_http(app: Router, addr: SocketAddr) -> Result<(), SignerError> {
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
             .map_err(|e| SignerError::Internal(format!("Failed to bind to {addr}: {e}")))?;
 
-        info!("✅ Server ready - accepting connections (HTTP only) on {}", addr);
+        info!(
+            "✅ Server ready - accepting connections (HTTP only) on {}",
+            addr
+        );
 
-        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-            .await
-            .map_err(|e| SignerError::Internal(format!("Server error: {e}")))?;
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .map_err(|e| SignerError::Internal(format!("Server error: {e}")))?;
 
         Ok(())
     }
@@ -104,7 +118,7 @@ impl TlsManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_tls_manager_disabled() {
         let config = TlsConfig {
@@ -140,10 +154,13 @@ mod tests {
             key_file: None,
         };
         let tls_manager = TlsManager::new(config);
-        
+
         let result = tls_manager.load_tls_config().await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("TLS is not enabled"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("TLS is not enabled"));
     }
 
     #[tokio::test]
@@ -154,9 +171,9 @@ mod tests {
             key_file: Some("/nonexistent/key.pem".to_string()),
         };
         let tls_manager = TlsManager::new(config);
-        
+
         let result = tls_manager.load_tls_config().await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("not found"));
     }
-} 
+}

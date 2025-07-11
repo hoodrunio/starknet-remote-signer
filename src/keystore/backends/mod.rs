@@ -1,6 +1,6 @@
-use async_trait::async_trait;
 use crate::errors::SignerError;
 use crate::keystore::key_material::KeyMaterial;
+use async_trait::async_trait;
 
 /// Trait for keystore backends that provide secure key storage and retrieval
 #[async_trait]
@@ -27,9 +27,10 @@ pub trait KeystoreBackend: Send + Sync + std::fmt::Debug {
 
     /// Delete key from secure storage (if supported)
     async fn delete_key(&self) -> Result<(), SignerError> {
-        Err(SignerError::Config(
-            format!("{} backend does not support key deletion", self.backend_type())
-        ))
+        Err(SignerError::Config(format!(
+            "{} backend does not support key deletion",
+            self.backend_type()
+        )))
     }
 }
 
@@ -37,27 +38,19 @@ pub trait KeystoreBackend: Send + Sync + std::fmt::Debug {
 #[derive(Debug, Clone)]
 pub enum BackendConfig {
     /// Software-based encrypted storage (single file)
-    Software { 
-        keystore_path: String,
-    },
+    Software { keystore_path: String },
     /// File-based encrypted storage (directory with multiple key files)
-    File { 
+    File {
         keystore_dir: String,
         key_name: Option<String>,
     },
     /// Environment variable (less secure, for development)
-    Environment { 
-        var_name: String,
-    },
+    Environment { var_name: String },
     /// OS keyring integration
-    OsKeyring { 
-        key_name: String,
-    },
+    OsKeyring { key_name: String },
     /// Hardware Security Module (future)
     #[allow(dead_code)]
-    Hsm { 
-        device_path: String,
-    },
+    Hsm { device_path: String },
 }
 
 impl BackendConfig {
@@ -66,7 +59,7 @@ impl BackendConfig {
         match self {
             BackendConfig::Software { .. } => "software",
             BackendConfig::File { .. } => "file",
-            BackendConfig::Environment { .. } => "environment", 
+            BackendConfig::Environment { .. } => "environment",
             BackendConfig::OsKeyring { .. } => "os_keyring",
             BackendConfig::Hsm { .. } => "hsm",
         }
@@ -74,13 +67,13 @@ impl BackendConfig {
 }
 
 // Backend implementations
-pub mod software;
-pub mod file;
 pub mod environment;
+pub mod file;
 pub mod os_keyring;
+pub mod software;
 
 // Re-exports for convenience
-pub use software::SoftwareBackend;
-pub use file::FileBackend;
 pub use environment::EnvironmentBackend;
-pub use os_keyring::OsKeyringBackend; 
+pub use file::FileBackend;
+pub use os_keyring::OsKeyringBackend;
+pub use software::SoftwareBackend;

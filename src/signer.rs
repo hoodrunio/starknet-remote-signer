@@ -1,5 +1,5 @@
 use starknet::core::types::BroadcastedInvokeTransactionV3;
-use starknet_crypto::{Felt, PoseidonHasher, poseidon_hash_many};
+use starknet_crypto::{poseidon_hash_many, Felt, PoseidonHasher};
 use tracing::{debug, info};
 
 use crate::errors::SignerError;
@@ -29,11 +29,15 @@ impl StarknetSigner {
     }
 
     /// Sign a transaction hash
-    pub async fn sign_transaction_hash(&self, transaction_hash: Felt) -> Result<Vec<Felt>, SignerError> {
+    pub async fn sign_transaction_hash(
+        &self,
+        transaction_hash: Felt,
+    ) -> Result<Vec<Felt>, SignerError> {
         debug!("Signing transaction hash: 0x{:x}", transaction_hash);
-        
+
         let signing_key = self.keystore.signing_key().await?;
-        let signature = signing_key.sign(&transaction_hash)
+        let signature = signing_key
+            .sign(&transaction_hash)
             .map_err(|e| SignerError::Crypto(format!("Signing failed: {e}")))?;
 
         Ok(vec![signature.r, signature.s])
@@ -41,13 +45,13 @@ impl StarknetSigner {
 
     /// Sign a full transaction (computes hash and signs)
     pub async fn sign_transaction(
-        &self, 
-        transaction: &BroadcastedInvokeTransactionV3, 
-        chain_id: Felt
+        &self,
+        transaction: &BroadcastedInvokeTransactionV3,
+        chain_id: Felt,
     ) -> Result<Vec<Felt>, SignerError> {
         let transaction_hash = compute_transaction_hash(transaction, chain_id)?;
         debug!("Computed transaction hash: 0x{:x}", transaction_hash);
-        
+
         self.sign_transaction_hash(transaction_hash).await
     }
 }
@@ -71,8 +75,8 @@ const QUERY_VERSION_THREE: Felt = Felt::from_raw([
 /// Compute the transaction hash for an invoke transaction v3
 /// This is a copy of the transaction hash computation from starknet-rs
 pub fn compute_transaction_hash(
-    tx: &BroadcastedInvokeTransactionV3, 
-    chain_id: Felt
+    tx: &BroadcastedInvokeTransactionV3,
+    chain_id: Felt,
 ) -> Result<Felt, SignerError> {
     let mut hasher = PoseidonHasher::new();
 
@@ -148,9 +152,7 @@ mod tests {
     use super::*;
     use starknet::core::{
         chain_id,
-        types::{
-            DataAvailabilityMode, ResourceBounds, ResourceBoundsMapping,
-        },
+        types::{DataAvailabilityMode, ResourceBounds, ResourceBoundsMapping},
     };
     use starknet::macros::felt;
 
@@ -190,10 +192,10 @@ mod tests {
             fee_data_availability_mode: DataAvailabilityMode::L1,
             is_query: false,
         };
-        
+
         let chain_id = chain_id::SEPOLIA;
         let tx_hash = compute_transaction_hash(&tx, chain_id).unwrap();
-        
+
         // This should match the expected hash from the original example
         assert_eq!(
             tx_hash,
@@ -203,26 +205,27 @@ mod tests {
 
     #[tokio::test]
     async fn test_signer_creation_and_signing() {
-        use crate::keystore::{Keystore, backends::BackendConfig};
-        
+        use crate::keystore::{backends::BackendConfig, Keystore};
+
         let private_key = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
         std::env::set_var("TEST_SIGNER_KEY", private_key);
-        
+
         let mut keystore = Keystore::new(BackendConfig::Environment {
             var_name: "TEST_SIGNER_KEY".to_string(),
-        }).unwrap();
+        })
+        .unwrap();
         keystore.init(None).await.unwrap();
-        
+
         let signer = StarknetSigner::new(keystore).await.unwrap();
-        
+
         // Test public key retrieval
         let public_key = signer.public_key().await.unwrap();
         assert_ne!(public_key, Felt::ZERO);
-        
+
         // Test signing a simple hash
         let test_hash = felt!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
         let signature = signer.sign_transaction_hash(test_hash).await.unwrap();
-        
+
         // Signature should have two non-zero components
         assert_ne!(signature[0], Felt::ZERO);
         assert_ne!(signature[1], Felt::ZERO);
@@ -230,9 +233,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_signer_with_file_backend() {
-        use crate::keystore::{Keystore, backends::BackendConfig, FileBackend};
+        use crate::keystore::{backends::BackendConfig, FileBackend, Keystore};
         use tempfile::TempDir;
-        
+
         let temp_dir = TempDir::new().unwrap();
         let keystore_path = temp_dir.path().to_str().unwrap();
         let private_key = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
@@ -248,21 +251,22 @@ mod tests {
         let mut keystore = Keystore::new(BackendConfig::File {
             keystore_dir: keystore_path.to_string(),
             key_name: Some(key_name.to_string()),
-        }).unwrap();
+        })
+        .unwrap();
         keystore.init(Some(password)).await.unwrap();
-        
+
         let signer = StarknetSigner::new(keystore).await.unwrap();
-        
+
         // Test public key retrieval
         let public_key = signer.public_key().await.unwrap();
         assert_ne!(public_key, Felt::ZERO);
-        
+
         // Test signing a simple hash
         let test_hash = felt!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
         let signature = signer.sign_transaction_hash(test_hash).await.unwrap();
-        
+
         // Signature should have two non-zero components
         assert_ne!(signature[0], Felt::ZERO);
         assert_ne!(signature[1], Felt::ZERO);
     }
-} 
+}

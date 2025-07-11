@@ -1,14 +1,14 @@
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use tracing::{info, warn};
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 
 use crate::errors::SignerError;
 use crate::keystore::backends::KeystoreBackend;
+use crate::keystore::encryption::{decrypt_key, encrypt_key};
 use crate::keystore::key_material::KeyMaterial;
-use crate::keystore::encryption::{encrypt_key, decrypt_key};
 
 /// File-based keystore backend using encrypted directory storage
 /// Similar to Cosmos-SDK file keyring backend
@@ -65,22 +65,29 @@ impl FileBackend {
     /// Create keystore directory if it doesn't exist
     fn ensure_directory_exists(&self) -> Result<(), SignerError> {
         if !self.keystore_dir.exists() {
-            fs::create_dir_all(&self.keystore_dir)
-                .map_err(|e| SignerError::Config(format!("Failed to create keystore directory: {e}")))?;
-            
+            fs::create_dir_all(&self.keystore_dir).map_err(|e| {
+                SignerError::Config(format!("Failed to create keystore directory: {e}"))
+            })?;
+
             // Set restrictive permissions (Unix only)
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
                 let mut perms = fs::metadata(&self.keystore_dir)
-                    .map_err(|e| SignerError::Config(format!("Failed to get directory metadata: {e}")))?
+                    .map_err(|e| {
+                        SignerError::Config(format!("Failed to get directory metadata: {e}"))
+                    })?
                     .permissions();
                 perms.set_mode(0o700); // rwx------
-                fs::set_permissions(&self.keystore_dir, perms)
-                    .map_err(|e| SignerError::Config(format!("Failed to set directory permissions: {e}")))?;
+                fs::set_permissions(&self.keystore_dir, perms).map_err(|e| {
+                    SignerError::Config(format!("Failed to set directory permissions: {e}"))
+                })?;
             }
-            
-            info!("Created keystore directory: {}", self.keystore_dir.display());
+
+            info!(
+                "Created keystore directory: {}",
+                self.keystore_dir.display()
+            );
         }
         Ok(())
     }
@@ -88,11 +95,11 @@ impl FileBackend {
     /// Load or create metadata file
     fn load_metadata(&self) -> Result<KeystoreMetadata, SignerError> {
         let metadata_path = self.metadata_path();
-        
+
         if metadata_path.exists() {
             let data = fs::read(&metadata_path)
                 .map_err(|e| SignerError::Config(format!("Failed to read metadata: {e}")))?;
-            
+
             serde_json::from_slice(&data)
                 .map_err(|e| SignerError::Config(format!("Failed to parse metadata: {e}")))
         } else {
@@ -114,29 +121,32 @@ impl FileBackend {
         let metadata_path = self.metadata_path();
         let data = serde_json::to_string_pretty(metadata)
             .map_err(|e| SignerError::Config(format!("Failed to serialize metadata: {e}")))?;
-        
+
         fs::write(&metadata_path, data)
             .map_err(|e| SignerError::Config(format!("Failed to write metadata: {e}")))?;
-        
+
         // Set restrictive permissions (Unix only)
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             let mut perms = fs::metadata(&metadata_path)
-                .map_err(|e| SignerError::Config(format!("Failed to get metadata file metadata: {e}")))?
+                .map_err(|e| {
+                    SignerError::Config(format!("Failed to get metadata file metadata: {e}"))
+                })?
                 .permissions();
             perms.set_mode(0o600); // rw-------
-            fs::set_permissions(&metadata_path, perms)
-                .map_err(|e| SignerError::Config(format!("Failed to set metadata file permissions: {e}")))?;
+            fs::set_permissions(&metadata_path, perms).map_err(|e| {
+                SignerError::Config(format!("Failed to set metadata file permissions: {e}"))
+            })?;
         }
-        
+
         Ok(())
     }
 
     /// Load keys from the keystore directory (only selected key if specified, otherwise all)
     fn load_keys(&mut self, password: &str) -> Result<(), SignerError> {
         let metadata = self.load_metadata()?;
-        
+
         if let Some(selected_key) = &self.selected_key_name {
             // Load only the selected key
             if metadata.keys.contains(selected_key) {
@@ -172,14 +182,18 @@ impl FileBackend {
             }
             info!("Loaded {} keys from file keystore", self.keys.len());
         }
-        
+
         Ok(())
     }
 
     /// Load a specific key from file
-    fn load_key_from_file(&self, key_name: &str, password: &str) -> Result<KeyMaterial, SignerError> {
+    fn load_key_from_file(
+        &self,
+        key_name: &str,
+        password: &str,
+    ) -> Result<KeyMaterial, SignerError> {
         let key_path = self.key_file_path(key_name);
-        
+
         let jwe_token = fs::read_to_string(&key_path)
             .map_err(|e| SignerError::Config(format!("Failed to read key file {key_name}: {e}")))?;
 
@@ -188,13 +202,19 @@ impl FileBackend {
     }
 
     /// Save a key to file
-    fn save_key_to_file(&self, key_name: &str, key_material: &KeyMaterial, password: &str) -> Result<(), SignerError> {
+    fn save_key_to_file(
+        &self,
+        key_name: &str,
+        key_material: &KeyMaterial,
+        password: &str,
+    ) -> Result<(), SignerError> {
         let key_path = self.key_file_path(key_name);
-        
+
         let jwe_token = encrypt_key(key_material.raw_bytes(), password)?;
 
-        fs::write(&key_path, &jwe_token)
-            .map_err(|e| SignerError::Config(format!("Failed to write key file {key_name}: {e}")))?;
+        fs::write(&key_path, &jwe_token).map_err(|e| {
+            SignerError::Config(format!("Failed to write key file {key_name}: {e}"))
+        })?;
 
         // Set restrictive permissions (Unix only)
         #[cfg(unix)]
@@ -204,8 +224,9 @@ impl FileBackend {
                 .map_err(|e| SignerError::Config(format!("Failed to get key file metadata: {e}")))?
                 .permissions();
             perms.set_mode(0o600); // rw-------
-            fs::set_permissions(&key_path, perms)
-                .map_err(|e| SignerError::Config(format!("Failed to set key file permissions: {e}")))?;
+            fs::set_permissions(&key_path, perms).map_err(|e| {
+                SignerError::Config(format!("Failed to set key file permissions: {e}"))
+            })?;
         }
 
         info!("Saved key '{}' to file keystore", key_name);
@@ -215,22 +236,22 @@ impl FileBackend {
     /// Add a key to the metadata
     fn add_key_to_metadata(&self, key_name: &str) -> Result<(), SignerError> {
         let mut metadata = self.load_metadata()?;
-        
+
         if !metadata.keys.contains(&key_name.to_string()) {
             metadata.keys.push(key_name.to_string());
             self.save_metadata(&metadata)?;
         }
-        
+
         Ok(())
     }
 
     /// Remove a key from the metadata
     fn remove_key_from_metadata(&self, key_name: &str) -> Result<(), SignerError> {
         let mut metadata = self.load_metadata()?;
-        
+
         metadata.keys.retain(|k| k != key_name);
         self.save_metadata(&metadata)?;
-        
+
         Ok(())
     }
 
@@ -243,12 +264,15 @@ impl FileBackend {
     ) -> Result<(), SignerError> {
         let backend = FileBackend::new(keystore_dir.to_string());
         backend.ensure_directory_exists()?;
-        
+
         let key_material = KeyMaterial::from_hex(private_key_hex)?;
         backend.save_key_to_file(key_name, &key_material, password)?;
         backend.add_key_to_metadata(key_name)?;
-        
-        info!("Created key '{}' in file keystore at: {}", key_name, keystore_dir);
+
+        info!(
+            "Created key '{}' in file keystore at: {}",
+            key_name, keystore_dir
+        );
         Ok(())
     }
 
@@ -266,14 +290,15 @@ impl FileBackend {
     /// Delete a specific key
     pub async fn delete_key(&self, key_name: &str) -> Result<(), SignerError> {
         let key_path = self.key_file_path(key_name);
-        
+
         if key_path.exists() {
-            fs::remove_file(&key_path)
-                .map_err(|e| SignerError::Config(format!("Failed to delete key file {key_name}: {e}")))?;
+            fs::remove_file(&key_path).map_err(|e| {
+                SignerError::Config(format!("Failed to delete key file {key_name}: {e}"))
+            })?;
         }
-        
+
         self.remove_key_from_metadata(key_name)?;
-        
+
         info!("Deleted key '{}' from file keystore", key_name);
         Ok(())
     }
@@ -281,7 +306,9 @@ impl FileBackend {
     /// Get the key name to use (selected key or first available)
     fn get_active_key_name(&self) -> Result<String, SignerError> {
         if self.keys.is_empty() {
-            return Err(SignerError::Config("No keys available in keystore".to_string()));
+            return Err(SignerError::Config(
+                "No keys available in keystore".to_string(),
+            ));
         }
 
         // If specific key name is selected, use it
@@ -310,46 +337,57 @@ impl KeystoreBackend for FileBackend {
         })?;
 
         self.ensure_directory_exists()?;
-        
+
         // Check if keystore directory exists and has keys
         let metadata_path = self.metadata_path();
         if !metadata_path.exists() {
-            warn!("File keystore not initialized at: {}", self.keystore_dir.display());
+            warn!(
+                "File keystore not initialized at: {}",
+                self.keystore_dir.display()
+            );
             warn!("Use 'create-key' command to add keys to the keystore");
             return Ok(()); // Not an error, just empty keystore
         }
 
         self.password = Some(password.to_string());
         self.load_keys(password)?;
-        
+
         if self.keys.is_empty() {
-            warn!("No keys found in file keystore: {}", self.keystore_dir.display());
+            warn!(
+                "No keys found in file keystore: {}",
+                self.keystore_dir.display()
+            );
         }
-        
+
         Ok(())
     }
 
     async fn store_key(&self, key_material: &KeyMaterial) -> Result<(), SignerError> {
-        let password = self.password.as_ref()
+        let password = self
+            .password
+            .as_ref()
             .ok_or_else(|| SignerError::Config("File keystore not initialized".to_string()))?;
 
         // For this implementation, we'll use a default key name
         // In a full implementation, this would be configurable
         let key_name = "default";
-        
+
         self.save_key_to_file(key_name, key_material, password)?;
         self.add_key_to_metadata(key_name)?;
-        
+
         Ok(())
     }
 
     async fn load_key(&self) -> Result<KeyMaterial, SignerError> {
         if self.keys.is_empty() {
-            return Err(SignerError::Config("No keys available in keystore".to_string()));
+            return Err(SignerError::Config(
+                "No keys available in keystore".to_string(),
+            ));
         }
 
         let key_name = self.get_active_key_name()?;
-        self.keys.get(&key_name)
+        self.keys
+            .get(&key_name)
             .ok_or_else(|| SignerError::Config(format!("Key '{key_name}' not found")))
             .map(|km| KeyMaterial::from_bytes(*km.raw_bytes()))
     }
@@ -368,7 +406,7 @@ impl KeystoreBackend for FileBackend {
         if let Some(parent) = self.keystore_dir.parent() {
             if !parent.exists() {
                 return Err(SignerError::Config(format!(
-                    "Parent directory does not exist: {}", 
+                    "Parent directory does not exist: {}",
                     parent.display()
                 )));
             }
@@ -383,8 +421,8 @@ impl KeystoreBackend for FileBackend {
                 }
                 Err(e) => {
                     return Err(SignerError::Config(format!(
-                        "Cannot write to keystore directory {}: {}", 
-                        self.keystore_dir.display(), 
+                        "Cannot write to keystore directory {}: {}",
+                        self.keystore_dir.display(),
                         e
                     )));
                 }
@@ -421,7 +459,7 @@ mod tests {
     async fn test_file_backend_creation() {
         let temp_dir = TempDir::new().unwrap();
         let keystore_path = temp_dir.path().to_str().unwrap();
-        
+
         let backend = FileBackend::new(keystore_path.to_string());
         assert_eq!(backend.backend_type(), "file");
         assert_eq!(backend.keystore_dir, PathBuf::from(keystore_path));
@@ -443,10 +481,10 @@ mod tests {
         // Load keystore
         let mut backend = FileBackend::new(keystore_path.to_string());
         backend.init(Some(password)).await.unwrap();
-        
+
         assert!(backend.is_available());
         assert!(backend.has_key(key_name));
-        
+
         let loaded_key = backend.load_key().await.unwrap();
         assert_eq!(loaded_key.to_hex(), private_key);
     }
@@ -459,23 +497,27 @@ mod tests {
 
         // Create multiple keys
         FileBackend::create_key(
-            keystore_path, 
-            "key1", 
-            "1111111111111111111111111111111111111111111111111111111111111111", 
-            password
-        ).await.unwrap();
-        
+            keystore_path,
+            "key1",
+            "1111111111111111111111111111111111111111111111111111111111111111",
+            password,
+        )
+        .await
+        .unwrap();
+
         FileBackend::create_key(
-            keystore_path, 
-            "key2", 
-            "2222222222222222222222222222222222222222222222222222222222222222", 
-            password
-        ).await.unwrap();
+            keystore_path,
+            "key2",
+            "2222222222222222222222222222222222222222222222222222222222222222",
+            password,
+        )
+        .await
+        .unwrap();
 
         // Load keystore
         let mut backend = FileBackend::new(keystore_path.to_string());
         backend.init(Some(password)).await.unwrap();
-        
+
         let keys = backend.list_keys().unwrap();
         assert_eq!(keys.len(), 2);
         assert!(keys.contains(&"key1".to_string()));
@@ -486,7 +528,7 @@ mod tests {
     fn test_validate_config() {
         let temp_dir = TempDir::new().unwrap();
         let keystore_path = temp_dir.path().to_str().unwrap();
-        
+
         let backend = FileBackend::new(keystore_path.to_string());
         assert!(backend.validate_config().is_ok());
     }
@@ -496,4 +538,4 @@ mod tests {
         let backend = FileBackend::new("/nonexistent/parent/dir".to_string());
         assert!(backend.validate_config().is_err());
     }
-} 
+}

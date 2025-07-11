@@ -8,16 +8,16 @@ use crate::errors::SignerError;
 
 // Re-export sub-modules
 pub mod backends;
-pub mod key_material;
 pub mod encryption;
+pub mod key_material;
 
 // Re-export commonly used types
 pub use backends::{BackendConfig, KeystoreBackend};
-pub use key_material::KeyMaterial;
 pub use encryption::EncryptedKeystore;
+pub use key_material::KeyMaterial;
 
 // Re-export backend implementations
-pub use backends::{SoftwareBackend, FileBackend, EnvironmentBackend, OsKeyringBackend};
+pub use backends::{EnvironmentBackend, FileBackend, OsKeyringBackend, SoftwareBackend};
 
 /// Main keystore for managing validator keys using pluggable backends
 #[derive(Debug)]
@@ -32,37 +32,37 @@ impl Keystore {
             BackendConfig::Software { keystore_path } => {
                 Box::new(SoftwareBackend::new(keystore_path))
             }
-            BackendConfig::File { keystore_dir, key_name } => {
-                Box::new(FileBackend::new_with_key(keystore_dir, key_name))
-            }
-            BackendConfig::Environment { var_name } => {
-                Box::new(EnvironmentBackend::new(var_name))
-            }
-            BackendConfig::OsKeyring { key_name } => {
-                Box::new(OsKeyringBackend::new(key_name))
-            }
+            BackendConfig::File {
+                keystore_dir,
+                key_name,
+            } => Box::new(FileBackend::new_with_key(keystore_dir, key_name)),
+            BackendConfig::Environment { var_name } => Box::new(EnvironmentBackend::new(var_name)),
+            BackendConfig::OsKeyring { key_name } => Box::new(OsKeyringBackend::new(key_name)),
             BackendConfig::Hsm { .. } => {
                 return Err(SignerError::Config(
-                    "HSM backend not yet implemented".to_string()
+                    "HSM backend not yet implemented".to_string(),
                 ));
             }
         };
 
         info!("Created keystore with backend: {}", backend.backend_type());
-        
+
         Ok(Self { backend })
     }
 
     /// Initialize keystore and load/create keys
     pub async fn init(&mut self, config: Option<&str>) -> Result<(), SignerError> {
-        info!("Initializing keystore backend: {}", self.backend.backend_type());
-        
+        info!(
+            "Initializing keystore backend: {}",
+            self.backend.backend_type()
+        );
+
         // Validate backend configuration first
         self.backend.validate_config()?;
-        
+
         // Initialize the backend
         self.backend.init(config).await?;
-        
+
         info!("✅ Keystore initialized successfully");
         Ok(())
     }
@@ -184,10 +184,10 @@ mod tests {
         assert_eq!(keystore.backend_type(), "environment");
 
         keystore.init(None).await.unwrap();
-        
+
         let loaded_key = keystore.signing_key().await.unwrap();
         let expected_key = SigningKey::from_secret_scalar(Felt::from_hex(private_key).unwrap());
-        
+
         assert_eq!(loaded_key.secret_scalar(), expected_key.secret_scalar());
     }
 
@@ -210,12 +210,12 @@ mod tests {
 
         let mut keystore = Keystore::new(config).unwrap();
         assert_eq!(keystore.backend_type(), "software");
-        
+
         keystore.init(Some(passphrase)).await.unwrap();
-        
+
         let loaded_key = keystore.signing_key().await.unwrap();
         let expected_key = SigningKey::from_secret_scalar(Felt::from_hex(private_key).unwrap());
-        
+
         assert_eq!(loaded_key.secret_scalar(), expected_key.secret_scalar());
     }
 
@@ -245,9 +245,12 @@ mod tests {
         let hsm_config = BackendConfig::Hsm {
             device_path: "/dev/hsm0".to_string(),
         };
-        
+
         let result = Keystore::new(hsm_config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not yet implemented"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("not yet implemented"));
     }
-} 
+}

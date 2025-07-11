@@ -1,13 +1,13 @@
 use clap::Parser;
 
+pub mod audit;
 pub mod config;
 pub mod errors;
-pub mod keystore;
 pub mod key_management;
+pub mod keystore;
+pub mod security;
 pub mod server;
 pub mod signer;
-pub mod audit;
-pub mod security;
 pub mod utils;
 
 pub use config::Config;
@@ -176,4 +176,4 @@ struct InitArgs {
 
 // Integration tests
 #[cfg(test)]
-pub mod integration_test; 
+pub mod integration_test;

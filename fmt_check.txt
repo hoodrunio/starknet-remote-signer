@@ -1,0 +1,3258 @@
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:1:
+ use chrono::{DateTime, Utc};
+ use serde::Serialize;
+[32m+use starknet::core::utils::parse_cairo_short_string;
+(B[m[32m+use starknet_crypto::Felt;
+(B[m use std::fs::{File, OpenOptions};
+ use std::io::Write;
+ use std::path::Path;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:6:
+ use std::sync::Arc;
+[31m-use starknet::core::utils::parse_cairo_short_string;
+(B[m[31m-use starknet_crypto::Felt;
+(B[m use tokio::sync::Mutex;
+ 
+ use crate::errors::SignerError;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:14:
+ pub struct AttestationAuditEntry {
+     // Timestamp
+     timestamp: DateTime<Utc>,
+[31m-    
+(B[m[32m+
+(B[m     // Request info
+     source_ip: String,
+     chain_id: String,
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:21:
+     chain_id_hex: String,
+[31m-    
+(B[m[32m+
+(B[m     // Transaction details
+     sender_address: String,
+     nonce: String,
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:26:
+[31m-    
+(B[m[32m+
+(B[m     // Attestation specific (extracted from calldata)
+     attestation_contract: Option<String>,
+     attested_block_hash: Option<String>,
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:30:
+[31m-    
+(B[m[32m+
+(B[m     // Signature info
+     tx_hash: String,
+     signature_r: String,
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:34:
+     signature_s: String,
+[31m-    
+(B[m[32m+
+(B[m     // Result
+     success: bool,
+     error: Option<String>,
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:48:
+         // Parse chain ID to human readable
+         let chain_id_str = parse_cairo_short_string(&request.chain_id)
+             .unwrap_or_else(|_| format!("{:#x}", request.chain_id));
+[31m-        
+(B[m[32m+
+(B[m         // Extract attestation specific data from calldata
+         // Attestation calldata structure:
+         // [0]: "0x1" (call array length)
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:56:
+         // [2]: selector (attest function)
+         // [3]: "0x1" (calldata length)
+         // [4]: block hash being attested
+[31m-        let attestation_contract = request.transaction.calldata.get(1)
+(B[m[32m+        let attestation_contract = request
+(B[m[32m+            .transaction
+(B[m[32m+            .calldata
+(B[m[32m+            .get(1)
+(B[m             .map(|f| format!("{f:#x}"));
+[31m-            
+(B[m[31m-        let attested_block_hash = request.transaction.calldata.get(4)
+(B[m[32m+
+(B[m[32m+        let attested_block_hash = request
+(B[m[32m+            .transaction
+(B[m[32m+            .calldata
+(B[m[32m+            .get(4)
+(B[m             .map(|f| format!("{f:#x}"));
+[31m-        
+(B[m[32m+
+(B[m         Self {
+             timestamp: Utc::now(),
+             source_ip: source_ip.to_string(),
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:71:
+             nonce: format!("{:#x}", request.transaction.nonce),
+             attestation_contract,
+             attested_block_hash,
+[31m-            tx_hash: String::new(), // Will be filled later
+(B[m[32m+            tx_hash: String::new(),     // Will be filled later
+(B[m             signature_r: String::new(), // Will be filled later
+             signature_s: String::new(), // Will be filled later
+             success: false,
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:79:
+             duration_ms: start_time.elapsed().as_millis() as u64,
+         }
+     }
+[31m-    
+(B[m[32m+
+(B[m     pub fn set_transaction_hash(&mut self, tx_hash: Felt) {
+         self.tx_hash = format!("{tx_hash:#x}");
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:86:
+[31m-    
+(B[m[32m+
+(B[m     pub fn set_signature(&mut self, signature: &[Felt]) {
+         if signature.len() >= 2 {
+             self.signature_r = format!("{:#x}", signature[0]);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:90:
+             self.signature_s = format!("{:#x}", signature[1]);
+         }
+     }
+[31m-    
+(B[m[32m+
+(B[m     pub fn set_success(&mut self, success: bool) {
+         self.success = success;
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:97:
+[31m-    
+(B[m[32m+
+(B[m     pub fn set_error(&mut self, error: String) {
+         self.error = Some(error);
+         self.success = false;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:101:
+     }
+[31m-    
+(B[m[32m+
+(B[m     pub fn update_duration(&mut self, start_time: std::time::Instant) {
+         self.duration_ms = start_time.elapsed().as_millis() as u64;
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:112:
+ impl AuditLogger {
+     pub fn new(log_path: &str) -> Result<Self, SignerError> {
+         let path = Path::new(log_path);
+[31m-        
+(B[m[32m+
+(B[m         // Create directory if it doesn't exist
+         if let Some(parent) = path.parent() {
+[31m-            std::fs::create_dir_all(parent)
+(B[m[31m-                .map_err(|e| SignerError::Internal(format!("Failed to create audit log directory: {e}")))?;
+(B[m[32m+            std::fs::create_dir_all(parent).map_err(|e| {
+(B[m[32m+                SignerError::Internal(format!("Failed to create audit log directory: {e}"))
+(B[m[32m+            })?;
+(B[m         }
+[31m-        
+(B[m[32m+
+(B[m         // Open file in append mode
+         let file = OpenOptions::new()
+             .create(true)
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:125:
+             .append(true)
+             .open(path)
+             .map_err(|e| SignerError::Internal(format!("Failed to open audit log file: {e}")))?;
+[31m-        
+(B[m[32m+
+(B[m         Ok(Self {
+             file: Arc::new(Mutex::new(file)),
+         })
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:132:
+     }
+[31m-    
+(B[m[32m+
+(B[m     pub async fn log(&self, entry: &AttestationAuditEntry) -> Result<(), SignerError> {
+         let json = serde_json::to_string(entry)
+             .map_err(|e| SignerError::Internal(format!("Failed to serialize audit entry: {e}")))?;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:137:
+[31m-        
+(B[m[32m+
+(B[m         let mut file = self.file.lock().await;
+         writeln!(file, "{json}")
+             .map_err(|e| SignerError::Internal(format!("Failed to write audit log: {e}")))?;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:141:
+         file.flush()
+             .map_err(|e| SignerError::Internal(format!("Failed to flush audit log: {e}")))?;
+[31m-        
+(B[m[32m+
+(B[m         Ok(())
+     }
+ }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/audit.rs:147:
+ 
+ // Re-export for use in server
+[31m-pub use crate::server::SignRequest; 
+(B[m[32m+pub use crate::server::SignRequest;
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:3:
+ use std::fs;
+ 
+ use crate::errors::SignerError;
+[31m-use crate::keystore::{Keystore, BackendConfig};
+(B[m[32m+use crate::keystore::{BackendConfig, Keystore};
+(B[m use crate::utils::get_passphrase_securely;
+ 
+ #[derive(Debug, Clone, Serialize, Deserialize)]
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:74:
+         // Save CLI values to check for defaults later
+         let cli_address = cli.address.clone();
+         let cli_port = cli.port;
+[31m-        
+(B[m[32m+
+(B[m         // Start with CLI values
+         let mut config = Self {
+             server: ServerConfig {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:87:
+                 key_file: cli.tls_key,
+             },
+             keystore: KeystoreConfig {
+[31m-                backend: cli.keystore_backend.unwrap_or_else(|| "environment".to_string()),
+(B[m[32m+                backend: cli
+(B[m[32m+                    .keystore_backend
+(B[m[32m+                    .unwrap_or_else(|| "environment".to_string()),
+(B[m                 path: cli.keystore_path,
+                 dir: cli.keystore_dir,
+[31m-                env_var: Some(cli.env_var.unwrap_or_else(|| "SIGNER_PRIVATE_KEY".to_string())),
+(B[m[32m+                env_var: Some(
+(B[m[32m+                    cli.env_var
+(B[m[32m+                        .unwrap_or_else(|| "SIGNER_PRIVATE_KEY".to_string()),
+(B[m[32m+                ),
+(B[m                 device: None,
+                 key_name: cli.key_name,
+             },
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:101:
+ 
+         // Load from config file if provided
+         if let Some(config_path) = cli.config {
+[31m-            let config_content = fs::read_to_string(&config_path)
+(B[m[31m-                .map_err(|e| SignerError::Config(format!("Failed to read config file {config_path}: {e}")))?;
+(B[m[31m-            
+(B[m[32m+            let config_content = fs::read_to_string(&config_path).map_err(|e| {
+(B[m[32m+                SignerError::Config(format!("Failed to read config file {config_path}: {e}"))
+(B[m[32m+            })?;
+(B[m[32m+
+(B[m             let file_config: Config = toml::from_str(&config_content)
+                 .map_err(|e| SignerError::Config(format!("Failed to parse config file: {e}")))?;
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:110:
+             // Config file values override CLI defaults, but explicit CLI args override config file
+             // For server config, use config file values if they match CLI defaults
+[31m-            if cli_address == "0.0.0.0" {  // CLI default
+(B[m[32m+            if cli_address == "0.0.0.0" {
+(B[m[32m+                // CLI default
+(B[m                 config.server.address = file_config.server.address;
+             }
+[31m-            if cli_port == 3000 {  // CLI default
+(B[m[32m+            if cli_port == 3000 {
+(B[m[32m+                // CLI default
+(B[m                 config.server.port = file_config.server.port;
+             }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:119:
+             // CLI values override config file values for keystore
+[31m-            if config.keystore.backend == "environment" && file_config.keystore.backend != "environment" {
+(B[m[32m+            if config.keystore.backend == "environment"
+(B[m[32m+                && file_config.keystore.backend != "environment"
+(B[m[32m+            {
+(B[m                 config.keystore = file_config.keystore;
+             }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:127:
+             if !config.tls.enabled && file_config.tls.enabled {
+                 config.tls = file_config.tls;
+             }
+[31m-            
+(B[m[32m+
+(B[m             // Always use config file values for security and audit (config file takes precedence)
+             config.security = file_config.security;
+             config.audit = file_config.audit;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:142:
+             "software" => {
+                 if self.keystore.path.is_none() {
+                     return Err(SignerError::Config(
+[31m-                        "Keystore path is required for software backend".to_string()
+(B[m[32m+                        "Keystore path is required for software backend".to_string(),
+(B[m                     ));
+                 }
+             }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:149:
+             "file" => {
+                 if self.keystore.dir.is_none() {
+                     return Err(SignerError::Config(
+[31m-                        "Keystore directory is required for file backend".to_string()
+(B[m[32m+                        "Keystore directory is required for file backend".to_string(),
+(B[m                     ));
+                 }
+                 tracing::info!("📁 File backend configured");
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:156:
+[31m-                tracing::info!("🔐 Keys will be stored as encrypted files in directory: '{}'", 
+(B[m[31m-                    self.keystore.dir.as_ref().unwrap());
+(B[m[32m+                tracing::info!(
+(B[m[32m+                    "🔐 Keys will be stored as encrypted files in directory: '{}'",
+(B[m[32m+                    self.keystore.dir.as_ref().unwrap()
+(B[m[32m+                );
+(B[m                 if let Some(key_name) = &self.keystore.key_name {
+                     tracing::info!("🔑 Will use key: '{}'", key_name);
+                 } else {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:164:
+             "environment" => {
+                 if self.keystore.env_var.is_none() {
+                     return Err(SignerError::Config(
+[31m-                        "Environment variable name is required for environment backend".to_string()
+(B[m[32m+                        "Environment variable name is required for environment backend".to_string(),
+(B[m                     ));
+                 }
+[31m-                
+(B[m[32m+
+(B[m                 // Security warning for environment variable usage
+                 tracing::warn!("⚠️  SECURITY WARNING: Environment backend configured");
+                 tracing::warn!("⚠️  Private keys stored in environment variables are less secure");
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:174:
+[31m-                tracing::warn!("⚠️  Consider using 'software' backend with encrypted keystore for production");
+(B[m[32m+                tracing::warn!(
+(B[m[32m+                    "⚠️  Consider using 'software' backend with encrypted keystore for production"
+(B[m[32m+                );
+(B[m             }
+             "os_keyring" => {
+                 if self.keystore.key_name.is_none() {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:178:
+                     return Err(SignerError::Config(
+[31m-                        "Key name is required for OS keyring backend".to_string()
+(B[m[32m+                        "Key name is required for OS keyring backend".to_string(),
+(B[m                     ));
+                 }
+[31m-                
+(B[m[32m+
+(B[m                 // Platform check
+                 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+                 {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:186:
+                     return Err(SignerError::Config(
+[31m-                        "OS keyring backend is only supported on Linux and macOS".to_string()
+(B[m[32m+                        "OS keyring backend is only supported on Linux and macOS".to_string(),
+(B[m                     ));
+                 }
+[31m-                
+(B[m[32m+
+(B[m                 tracing::info!("📱 OS keyring backend configured");
+[31m-                tracing::info!("🔐 Keys will be stored in system keyring with key name: '{}'", 
+(B[m[31m-                    self.keystore.key_name.as_ref().unwrap());
+(B[m[32m+                tracing::info!(
+(B[m[32m+                    "🔐 Keys will be stored in system keyring with key name: '{}'",
+(B[m[32m+                    self.keystore.key_name.as_ref().unwrap()
+(B[m[32m+                );
+(B[m             }
+             "hsm" => {
+                 return Err(SignerError::Config(
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:197:
+[31m-                    "HSM backend not yet implemented".to_string()
+(B[m[32m+                    "HSM backend not yet implemented".to_string(),
+(B[m                 ));
+             }
+             _ => {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:208:
+         if self.tls.enabled {
+             if self.tls.cert_file.is_none() || self.tls.key_file.is_none() {
+                 return Err(SignerError::Config(
+[31m-                    "TLS certificate and key files are required when TLS is enabled".to_string()
+(B[m[32m+                    "TLS certificate and key files are required when TLS is enabled".to_string(),
+(B[m                 ));
+             }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:215:
+             if let Some(cert_file) = &self.tls.cert_file {
+                 if !std::path::Path::new(cert_file).exists() {
+[31m-                    return Err(SignerError::Config(
+(B[m[31m-                        format!("TLS certificate file not found: {cert_file}")
+(B[m[31m-                    ));
+(B[m[32m+                    return Err(SignerError::Config(format!(
+(B[m[32m+                        "TLS certificate file not found: {cert_file}"
+(B[m[32m+                    )));
+(B[m                 }
+             }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:223:
+             if let Some(key_file) = &self.tls.key_file {
+                 if !std::path::Path::new(key_file).exists() {
+[31m-                    return Err(SignerError::Config(
+(B[m[31m-                        format!("TLS key file not found: {key_file}")
+(B[m[31m-                    ));
+(B[m[32m+                    return Err(SignerError::Config(format!(
+(B[m[32m+                        "TLS key file not found: {key_file}"
+(B[m[32m+                    )));
+(B[m                 }
+             }
+         }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:232:
+         // Validate port range
+         if self.server.port == 0 {
+             return Err(SignerError::Config(
+[31m-                "Invalid port number: must be between 1 and 65535".to_string()
+(B[m[32m+                "Invalid port number: must be between 1 and 65535".to_string(),
+(B[m             ));
+         }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:245:
+ 
+         if self.keystore.backend == "environment" && self.tls.enabled {
+             tracing::warn!("⚠️  SECURITY WARNING: Environment keystore with TLS enabled");
+[31m-            tracing::warn!("⚠️  While TLS encrypts network traffic, private keys are still in env vars");
+(B[m[32m+            tracing::warn!(
+(B[m[32m+                "⚠️  While TLS encrypts network traffic, private keys are still in env vars"
+(B[m[32m+            );
+(B[m         }
+ 
+         // Validate that if IP restrictions are empty, we at least have chain ID restrictions
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:252:
+         if self.security.allowed_ips.is_empty() && self.security.allowed_chain_ids.is_empty() {
+             tracing::warn!("⚠️  SECURITY WARNING: No IP or chain ID restrictions configured");
+[31m-            tracing::warn!("⚠️  This allows any IP to sign for any chain - highly insecure for production");
+(B[m[32m+            tracing::warn!(
+(B[m[32m+                "⚠️  This allows any IP to sign for any chain - highly insecure for production"
+(B[m[32m+            );
+(B[m             tracing::warn!("⚠️  Configure 'allowed_ips' and 'allowed_chain_ids' in your config");
+         }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:258:
+         // Validate that we have at least one restriction if audit is disabled
+[31m-        if !self.audit.enabled && self.security.allowed_ips.is_empty() && self.security.allowed_chain_ids.is_empty() {
+(B[m[32m+        if !self.audit.enabled
+(B[m[32m+            && self.security.allowed_ips.is_empty()
+(B[m[32m+            && self.security.allowed_chain_ids.is_empty()
+(B[m[32m+        {
+(B[m             return Err(SignerError::Config(
+                 "Either audit logging must be enabled OR security restrictions must be configured (or both)".to_string()
+             ));
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:269:
+     pub fn get_keystore_passphrase(&self) -> Result<Option<String>, SignerError> {
+         match self.keystore.backend.as_str() {
+             "software" | "file" => {
+[31m-                let passphrase = get_passphrase_securely(
+(B[m[31m-                    self.passphrase.clone(),
+(B[m[31m-                    "Enter keystore passphrase: "
+(B[m[31m-                ).map_err(|e| SignerError::Config(format!("Failed to get passphrase: {e}")))?;
+(B[m[32m+                let passphrase =
+(B[m[32m+                    get_passphrase_securely(self.passphrase.clone(), "Enter keystore passphrase: ")
+(B[m[32m+                        .map_err(|e| {
+(B[m[32m+                            SignerError::Config(format!("Failed to get passphrase: {e}"))
+(B[m[32m+                        })?;
+(B[m                 Ok(Some(passphrase))
+             }
+             _ => Ok(None), // Other backends don't need passphrase
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:283:
+     pub async fn create_keystore(&self) -> Result<Keystore, SignerError> {
+         let backend = match self.keystore.backend.as_str() {
+             "software" => {
+[31m-                let path = self.keystore.path.as_ref().ok_or_else(|| {
+(B[m[31m-                    SignerError::Config("Keystore path not set".to_string())
+(B[m[31m-                })?;
+(B[m[32m+                let path = self
+(B[m[32m+                    .keystore
+(B[m[32m+                    .path
+(B[m[32m+                    .as_ref()
+(B[m[32m+                    .ok_or_else(|| SignerError::Config("Keystore path not set".to_string()))?;
+(B[m                 BackendConfig::Software {
+                     keystore_path: path.clone(),
+                 }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:292:
+             }
+             "file" => {
+[31m-                let dir = self.keystore.dir.as_ref().ok_or_else(|| {
+(B[m[31m-                    SignerError::Config("Keystore directory not set".to_string())
+(B[m[31m-                })?;
+(B[m[32m+                let dir =
+(B[m[32m+                    self.keystore.dir.as_ref().ok_or_else(|| {
+(B[m[32m+                        SignerError::Config("Keystore directory not set".to_string())
+(B[m[32m+                    })?;
+(B[m                 BackendConfig::File {
+                     keystore_dir: dir.clone(),
+                     key_name: self.keystore.key_name.clone(),
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:317:
+             }
+             "hsm" => {
+                 return Err(SignerError::Config(
+[31m-                    "HSM backend not yet implemented".to_string()
+(B[m[32m+                    "HSM backend not yet implemented".to_string(),
+(B[m                 ));
+             }
+             _ => {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/config.rs:329:
+ 
+         Keystore::new(backend)
+     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/errors.rs:4:
+ pub enum SignerError {
+     #[error("Configuration error: {0}")]
+     Config(String),
+[31m-    
+(B[m[32m+
+(B[m     #[error("Invalid private key: {0}")]
+     InvalidKey(String),
+[31m-    
+(B[m[32m+
+(B[m     #[error("Keystore error: {0}")]
+     Keystore(String),
+[31m-    
+(B[m[32m+
+(B[m     #[error("Cryptography error: {0}")]
+     Crypto(String),
+[31m-    
+(B[m[32m+
+(B[m     #[error("I/O error: {0}")]
+     Io(#[from] std::io::Error),
+[31m-    
+(B[m[32m+
+(B[m     #[error("Serialization error: {0}")]
+     Serialization(#[from] serde_json::Error),
+[31m-    
+(B[m[32m+
+(B[m     #[error("Internal error: {0}")]
+     Internal(String),
+[31m-    
+(B[m[32m+
+(B[m     #[error("Unauthorized: {0}")]
+     Unauthorized(String),
+ }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/errors.rs:32:
+         SignerError::Internal(err.to_string())
+     }
+ }
+[31m-
+(B[m[31m- 
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:1:
+ #[cfg(test)]
+ mod integration_tests {
+[32m+    use crate::config::{AuditConfig, KeystoreConfig, SecurityConfig, ServerConfig, TlsConfig};
+(B[m[32m+    use crate::{Config, Server};
+(B[m[32m+    use axum::extract::connect_info::MockConnectInfo;
+(B[m     use axum_test::TestServer;
+     use serde_json::json;
+[31m-    use starknet::macros::felt;
+(B[m     use starknet::core::types::{
+         BroadcastedInvokeTransactionV3, DataAvailabilityMode, ResourceBounds, ResourceBoundsMapping,
+     };
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:9:
+[31m-    use crate::{Config, Server};
+(B[m[31m-    use crate::config::{ServerConfig, TlsConfig, KeystoreConfig, SecurityConfig, AuditConfig};
+(B[m[31m-    use axum::extract::connect_info::MockConnectInfo;
+(B[m[32m+    use starknet::macros::felt;
+(B[m     use std::net::SocketAddr;
+ 
+     async fn create_test_server() -> TestServer {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:15:
+         // Set test private key in environment
+[31m-        std::env::set_var("TEST_PRIVATE_KEY", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
+(B[m[32m+        std::env::set_var(
+(B[m[32m+            "TEST_PRIVATE_KEY",
+(B[m[32m+            "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+(B[m[32m+        );
+(B[m 
+         let config = Config {
+             server: ServerConfig {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:35:
+             },
+             passphrase: None,
+             security: SecurityConfig {
+[31m-                allowed_chain_ids: vec![],  // Allow all chains in tests
+(B[m[31m-                allowed_ips: vec![],        // Allow all IPs in tests  
+(B[m[32m+                allowed_chain_ids: vec![], // Allow all chains in tests
+(B[m[32m+                allowed_ips: vec![],       // Allow all IPs in tests
+(B[m             },
+             audit: AuditConfig {
+[31m-                enabled: false,  // Disable audit logging in tests
+(B[m[31m-                log_path: "/tmp/test-audit.log".to_string(),  // Temporary path for tests
+(B[m[32m+                enabled: false,                              // Disable audit logging in tests
+(B[m[32m+                log_path: "/tmp/test-audit.log".to_string(), // Temporary path for tests
+(B[m                 rotate_daily: false,
+             },
+         };
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:47:
+ 
+         let server = Server::new(config).await.unwrap();
+[31m-        
+(B[m[32m+
+(B[m         // Add MockConnectInfo layer to provide SocketAddr in tests
+[31m-        let app = server.create_router()
+(B[m[32m+        let app = server
+(B[m[32m+            .create_router()
+(B[m             .layer(MockConnectInfo(SocketAddr::from(([127, 0, 0, 1], 8080))));
+[31m-            
+(B[m[32m+
+(B[m         TestServer::new(app).unwrap()
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:97:
+         });
+ 
+         // Send request exactly like starknet-attestation does
+[31m-        let response = server
+(B[m[31m-            .post("/sign")
+(B[m[31m-            .json(&request_body)
+(B[m[31m-            .await;
+(B[m[32m+        let response = server.post("/sign").json(&request_body).await;
+(B[m 
+         assert_eq!(response.status_code(), 200);
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:107:
+         let response_json: serde_json::Value = response.json();
+[31m-        
+(B[m[32m+
+(B[m         // Check response format matches what starknet-attestation expects
+         assert!(response_json.get("signature").is_some());
+         let signature = response_json["signature"].as_array().unwrap();
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:112:
+         assert_eq!(signature.len(), 2); // Should have r and s components
+[31m-        
+(B[m[32m+
+(B[m         // Signatures should be valid hex strings
+         for component in signature {
+             let sig_str = component.as_str().unwrap();
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:119:
+         }
+ 
+         println!("✅ starknet-attestation compatibility test passed!");
+[31m-        println!("Response: {}", serde_json::to_string_pretty(&response_json).unwrap());
+(B[m[32m+        println!(
+(B[m[32m+            "Response: {}",
+(B[m[32m+            serde_json::to_string_pretty(&response_json).unwrap()
+(B[m[32m+        );
+(B[m     }
+ 
+     #[tokio::test]
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:167:
+             "chain_id": "0x534e5f5345504f4c4941"
+         });
+ 
+[31m-        let response = server
+(B[m[31m-            .post("/sign")
+(B[m[31m-            .json(&request)
+(B[m[31m-            .await;
+(B[m[32m+        let response = server.post("/sign").json(&request).await;
+(B[m 
+         assert_eq!(response.status_code(), 200);
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/integration_test.rs:206:
+ 
+         println!("✅ Public key test passed!");
+     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:1:
+ use anyhow::Result;
+[31m-use tracing::{info, warn, error};
+(B[m[32m+use tracing::{error, info, warn};
+(B[m 
+[31m-use crate::{Keystore, keystore::{BackendConfig, KeyMaterial}, AddKeyArgs, DeleteKeyArgs, ListKeysArgs};
+(B[m[31m-use crate::utils::{prompt_for_passphrase_with_confirmation};
+(B[m[32m+use crate::utils::prompt_for_passphrase_with_confirmation;
+(B[m[32m+use crate::{
+(B[m[32m+    keystore::{BackendConfig, KeyMaterial},
+(B[m[32m+    AddKeyArgs, DeleteKeyArgs, Keystore, ListKeysArgs,
+(B[m[32m+};
+(B[m 
+ /// Key management module - handles add, delete, and list operations for keystores
+ pub async fn add_key(args: AddKeyArgs) -> Result<()> {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:12:
+     let backend_config = match args.backend.as_str() {
+         "software" => {
+             let path = args.keystore_path.ok_or_else(|| {
+[31m-                anyhow::anyhow!("Keystore path is required for software backend (use --keystore-path)")
+(B[m[32m+                anyhow::anyhow!(
+(B[m[32m+                    "Keystore path is required for software backend (use --keystore-path)"
+(B[m[32m+                )
+(B[m             })?;
+[31m-            
+(B[m[32m+
+(B[m             // Get passphrase securely with confirmation (new key creation)
+             let passphrase = match args.passphrase {
+                 Some(provided) => {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:23:
+                     warn!("⚠️  Consider omitting --passphrase to use secure prompting instead");
+                     provided
+                 }
+[31m-                None => {
+(B[m[31m-                    prompt_for_passphrase_with_confirmation("Enter passphrase for new software keystore: ")?
+(B[m[31m-                }
+(B[m[32m+                None => prompt_for_passphrase_with_confirmation(
+(B[m[32m+                    "Enter passphrase for new software keystore: ",
+(B[m[32m+                )?,
+(B[m             };
+[31m-            
+(B[m[32m+
+(B[m             // For software backend, create keystore file
+             Keystore::create_keystore(&path, &args.private_key, &passphrase).await?;
+[31m-            info!("✅ Key '{}' created in software keystore: {}", args.key_name, path);
+(B[m[32m+            info!(
+(B[m[32m+                "✅ Key '{}' created in software keystore: {}",
+(B[m[32m+                args.key_name, path
+(B[m[32m+            );
+(B[m             return Ok(());
+         }
+         "file" => {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:37:
+             let dir = args.keystore_dir.ok_or_else(|| {
+[31m-                anyhow::anyhow!("Keystore directory is required for file backend (use --keystore-dir)")
+(B[m[32m+                anyhow::anyhow!(
+(B[m[32m+                    "Keystore directory is required for file backend (use --keystore-dir)"
+(B[m[32m+                )
+(B[m             })?;
+[31m-            
+(B[m[32m+
+(B[m             // Get passphrase securely with confirmation (new key creation)
+             let passphrase = match args.passphrase {
+                 Some(provided) => {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:46:
+                     warn!("⚠️  Consider omitting --passphrase to use secure prompting instead");
+                     provided
+                 }
+[31m-                None => {
+(B[m[31m-                    prompt_for_passphrase_with_confirmation(&format!("Enter passphrase for new key '{}': ", args.key_name))?
+(B[m[31m-                }
+(B[m[32m+                None => prompt_for_passphrase_with_confirmation(&format!(
+(B[m[32m+                    "Enter passphrase for new key '{}': ",
+(B[m[32m+                    args.key_name
+(B[m[32m+                ))?,
+(B[m             };
+[31m-            
+(B[m[32m+
+(B[m             // For file backend, create key in directory
+             use crate::keystore::FileBackend;
+             FileBackend::create_key(&dir, &args.key_name, &args.private_key, &passphrase).await?;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:57:
+[31m-            info!("✅ Key '{}' created in file keystore: {}", args.key_name, dir);
+(B[m[32m+            info!(
+(B[m[32m+                "✅ Key '{}' created in file keystore: {}",
+(B[m[32m+                args.key_name, dir
+(B[m[32m+            );
+(B[m             return Ok(());
+         }
+         "environment" => {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:61:
+             return Err(anyhow::anyhow!("Environment backend does not support key addition. Set the environment variable manually."));
+         }
+[31m-        "os_keyring" => {
+(B[m[31m-            BackendConfig::OsKeyring { 
+(B[m[31m-                key_name: args.key_name.clone()
+(B[m[31m-            }
+(B[m[31m-        }
+(B[m[32m+        "os_keyring" => BackendConfig::OsKeyring {
+(B[m[32m+            key_name: args.key_name.clone(),
+(B[m[32m+        },
+(B[m         _ => {
+[31m-            return Err(anyhow::anyhow!("Unknown backend: {}. Supported backends: software, file, environment, os_keyring", args.backend));
+(B[m[32m+            return Err(anyhow::anyhow!(
+(B[m[32m+                "Unknown backend: {}. Supported backends: software, file, environment, os_keyring",
+(B[m[32m+                args.backend
+(B[m[32m+            ));
+(B[m         }
+     };
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:73:
+     // Create keystore and store key
+     let keystore = Keystore::new(backend_config)?;
+     keystore.validate_config()?;
+[31m-    
+(B[m[32m+
+(B[m     let key_material = KeyMaterial::from_hex(&args.private_key)?;
+     keystore.store_key(&key_material).await?;
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:80:
+[31m-    info!("✅ Key '{}' added successfully to {} backend", args.key_name, args.backend);
+(B[m[32m+    info!(
+(B[m[32m+        "✅ Key '{}' added successfully to {} backend",
+(B[m[32m+        args.key_name, args.backend
+(B[m[32m+    );
+(B[m     Ok(())
+ }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:88:
+         return Ok(());
+     }
+ 
+[31m-    info!("🗑️  Deleting key '{}' from {} backend", args.key_name, args.backend);
+(B[m[32m+    info!(
+(B[m[32m+        "🗑️  Deleting key '{}' from {} backend",
+(B[m[32m+        args.key_name, args.backend
+(B[m[32m+    );
+(B[m 
+     // Create backend config
+     let backend_config = match args.backend.as_str() {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:95:
+         "software" => {
+             let path = args.keystore_path.ok_or_else(|| {
+[31m-                anyhow::anyhow!("Keystore path is required for software backend (use --keystore-path)")
+(B[m[32m+                anyhow::anyhow!(
+(B[m[32m+                    "Keystore path is required for software backend (use --keystore-path)"
+(B[m[32m+                )
+(B[m             })?;
+[31m-            
+(B[m[32m+
+(B[m             // For software backend, delete the file
+             std::fs::remove_file(&path)?;
+             info!("✅ Software keystore file deleted: {}", path);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:104:
+         }
+         "file" => {
+             let dir = args.keystore_dir.ok_or_else(|| {
+[31m-                anyhow::anyhow!("Keystore directory is required for file backend (use --keystore-dir)")
+(B[m[32m+                anyhow::anyhow!(
+(B[m[32m+                    "Keystore directory is required for file backend (use --keystore-dir)"
+(B[m[32m+                )
+(B[m             })?;
+[31m-            
+(B[m[32m+
+(B[m             // For file backend, delete specific key file
+             use crate::keystore::FileBackend;
+             let backend = FileBackend::new(dir.clone());
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:113:
+             backend.delete_key(&args.key_name).await?;
+[31m-            info!("✅ Key '{}' deleted from file keystore: {}", args.key_name, dir);
+(B[m[32m+            info!(
+(B[m[32m+                "✅ Key '{}' deleted from file keystore: {}",
+(B[m[32m+                args.key_name, dir
+(B[m[32m+            );
+(B[m             return Ok(());
+         }
+         "environment" => {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:118:
+[31m-            return Err(anyhow::anyhow!("Environment backend does not support key deletion"));
+(B[m[32m+            return Err(anyhow::anyhow!(
+(B[m[32m+                "Environment backend does not support key deletion"
+(B[m[32m+            ));
+(B[m         }
+[31m-        "os_keyring" => {
+(B[m[31m-            BackendConfig::OsKeyring { 
+(B[m[31m-                key_name: args.key_name.clone()
+(B[m[31m-            }
+(B[m[31m-        }
+(B[m[32m+        "os_keyring" => BackendConfig::OsKeyring {
+(B[m[32m+            key_name: args.key_name.clone(),
+(B[m[32m+        },
+(B[m         _ => {
+[31m-            return Err(anyhow::anyhow!("Unknown backend: {}. Supported backends: software, file, environment, os_keyring", args.backend));
+(B[m[32m+            return Err(anyhow::anyhow!(
+(B[m[32m+                "Unknown backend: {}. Supported backends: software, file, environment, os_keyring",
+(B[m[32m+                args.backend
+(B[m[32m+            ));
+(B[m         }
+     };
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:130:
+     // Create keystore and initialize it
+     let mut keystore = Keystore::new(backend_config)?;
+     keystore.validate_config()?;
+[31m-    
+(B[m[32m+
+(B[m     // Initialize the keystore (will only load key if it exists)
+     keystore.init(None).await?;
+[31m-    
+(B[m[32m+
+(B[m     // Delete the key
+     keystore.delete_key().await?;
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:140:
+[31m-    info!("✅ Key '{}' deleted successfully from {} backend", args.key_name, args.backend);
+(B[m[32m+    info!(
+(B[m[32m+        "✅ Key '{}' deleted successfully from {} backend",
+(B[m[32m+        args.key_name, args.backend
+(B[m[32m+    );
+(B[m     Ok(())
+ }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:147:
+     match args.backend.as_str() {
+         "software" => {
+             let path = args.keystore_path.ok_or_else(|| {
+[31m-                anyhow::anyhow!("Keystore path is required for software backend (use --keystore-path)")
+(B[m[32m+                anyhow::anyhow!(
+(B[m[32m+                    "Keystore path is required for software backend (use --keystore-path)"
+(B[m[32m+                )
+(B[m             })?;
+[31m-            
+(B[m[32m+
+(B[m             if std::path::Path::new(&path).exists() {
+                 info!("📁 Software keystore found: {}", path);
+                 info!("   (Software keystores contain one key per file)");
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:159:
+         }
+         "file" => {
+             let dir = args.keystore_dir.ok_or_else(|| {
+[31m-                anyhow::anyhow!("Keystore directory is required for file backend (use --keystore-dir)")
+(B[m[32m+                anyhow::anyhow!(
+(B[m[32m+                    "Keystore directory is required for file backend (use --keystore-dir)"
+(B[m[32m+                )
+(B[m             })?;
+[31m-            
+(B[m[32m+
+(B[m             if std::path::Path::new(&dir).exists() {
+                 use crate::keystore::FileBackend;
+                 let backend = FileBackend::new(dir.clone());
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:192:
+         "os_keyring" => {
+             info!("🔑 OS keyring backend");
+             info!("   Use your system's keyring tools to list keys:");
+[31m-            
+(B[m[32m+
+(B[m             #[cfg(target_os = "linux")]
+             info!("   Linux: seahorse (GNOME), kwalletmanager (KDE)");
+[31m-            
+(B[m[32m+
+(B[m             #[cfg(target_os = "macos")]
+             info!("   macOS: Keychain Access.app or 'security find-generic-password -s starknet-signer'");
+[31m-            
+(B[m[32m+
+(B[m             info!("   Service: 'starknet-signer'");
+         }
+         _ => {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:205:
+[31m-            return Err(anyhow::anyhow!("Unknown backend: {}. Supported backends: software, file, environment, os_keyring", args.backend));
+(B[m[32m+            return Err(anyhow::anyhow!(
+(B[m[32m+                "Unknown backend: {}. Supported backends: software, file, environment, os_keyring",
+(B[m[32m+                args.backend
+(B[m[32m+            ));
+(B[m         }
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/key_management.rs:209:
+     Ok(())
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/environment.rs:28:
+         warn!("⚠️  Environment variables can be visible to other processes and may be logged");
+         warn!("⚠️  This method is NOT recommended for production use");
+         warn!("⚠️  Consider using the 'software' backend with encrypted keystore instead");
+[31m-        
+(B[m[31m-        let private_key_hex = std::env::var(&self.var_name)
+(B[m[31m-            .map_err(|_| SignerError::Config(format!("Environment variable {} not set", self.var_name)))?;
+(B[m 
+[32m+        let private_key_hex = std::env::var(&self.var_name).map_err(|_| {
+(B[m[32m+            SignerError::Config(format!("Environment variable {} not set", self.var_name))
+(B[m[32m+        })?;
+(B[m[32m+
+(B[m         // Validate the private key format
+         if private_key_hex.is_empty() {
+[31m-            return Err(SignerError::InvalidKey("Private key cannot be empty".to_string()));
+(B[m[32m+            return Err(SignerError::InvalidKey(
+(B[m[32m+                "Private key cannot be empty".to_string(),
+(B[m[32m+            ));
+(B[m         }
+ 
+         // Ensure the key is properly formatted (hex string)
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/environment.rs:41:
+         if !private_key_hex.chars().all(|c| c.is_ascii_hexdigit()) {
+[31m-            return Err(SignerError::InvalidKey("Private key must be a valid hex string".to_string()));
+(B[m[32m+            return Err(SignerError::InvalidKey(
+(B[m[32m+                "Private key must be a valid hex string".to_string(),
+(B[m[32m+            ));
+(B[m         }
+ 
+         // Validate key length (64 hex characters = 32 bytes)
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/environment.rs:46:
+         if private_key_hex.len() != 64 {
+[31m-            return Err(SignerError::InvalidKey("Private key must be exactly 64 hex characters (32 bytes)".to_string()));
+(B[m[32m+            return Err(SignerError::InvalidKey(
+(B[m[32m+                "Private key must be exactly 64 hex characters (32 bytes)".to_string(),
+(B[m[32m+            ));
+(B[m         }
+ 
+         self.key_material = Some(KeyMaterial::from_hex(&private_key_hex)?);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/environment.rs:61:
+ 
+     async fn store_key(&self, _key_material: &KeyMaterial) -> Result<(), SignerError> {
+         Err(SignerError::Config(
+[31m-            "Environment backend does not support key storage".to_string()
+(B[m[32m+            "Environment backend does not support key storage".to_string(),
+(B[m         ))
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/environment.rs:84:
+         if !self.is_available() {
+             warn!("Environment variable {} is not set", self.var_name);
+         }
+[31m-        
+(B[m[32m+
+(B[m         // Additional security warning during validation
+         warn!("⚠️  SECURITY WARNING: Environment backend configured");
+         warn!("⚠️  Private keys stored in environment variables are less secure");
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/environment.rs:91:
+         warn!("⚠️  Consider using 'software' backend with encrypted keystore for production");
+[31m-        
+(B[m[32m+
+(B[m         Ok(())
+     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:1:
+ use async_trait::async_trait;
+[32m+use serde::{Deserialize, Serialize};
+(B[m[32m+use std::collections::HashMap;
+(B[m use std::fs;
+ use std::path::PathBuf;
+ use tracing::{info, warn};
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:5:
+[31m-use std::collections::HashMap;
+(B[m[31m-use serde::{Deserialize, Serialize};
+(B[m 
+ use crate::errors::SignerError;
+ use crate::keystore::backends::KeystoreBackend;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:10:
+[32m+use crate::keystore::encryption::{decrypt_key, encrypt_key};
+(B[m use crate::keystore::key_material::KeyMaterial;
+[31m-use crate::keystore::encryption::{encrypt_key, decrypt_key};
+(B[m 
+ /// File-based keystore backend using encrypted directory storage
+ /// Similar to Cosmos-SDK file keyring backend
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:65:
+     /// Create keystore directory if it doesn't exist
+     fn ensure_directory_exists(&self) -> Result<(), SignerError> {
+         if !self.keystore_dir.exists() {
+[31m-            fs::create_dir_all(&self.keystore_dir)
+(B[m[31m-                .map_err(|e| SignerError::Config(format!("Failed to create keystore directory: {e}")))?;
+(B[m[31m-            
+(B[m[32m+            fs::create_dir_all(&self.keystore_dir).map_err(|e| {
+(B[m[32m+                SignerError::Config(format!("Failed to create keystore directory: {e}"))
+(B[m[32m+            })?;
+(B[m[32m+
+(B[m             // Set restrictive permissions (Unix only)
+             #[cfg(unix)]
+             {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:74:
+                 use std::os::unix::fs::PermissionsExt;
+                 let mut perms = fs::metadata(&self.keystore_dir)
+[31m-                    .map_err(|e| SignerError::Config(format!("Failed to get directory metadata: {e}")))?
+(B[m[32m+                    .map_err(|e| {
+(B[m[32m+                        SignerError::Config(format!("Failed to get directory metadata: {e}"))
+(B[m[32m+                    })?
+(B[m                     .permissions();
+                 perms.set_mode(0o700); // rwx------
+[31m-                fs::set_permissions(&self.keystore_dir, perms)
+(B[m[31m-                    .map_err(|e| SignerError::Config(format!("Failed to set directory permissions: {e}")))?;
+(B[m[32m+                fs::set_permissions(&self.keystore_dir, perms).map_err(|e| {
+(B[m[32m+                    SignerError::Config(format!("Failed to set directory permissions: {e}"))
+(B[m[32m+                })?;
+(B[m             }
+[31m-            
+(B[m[31m-            info!("Created keystore directory: {}", self.keystore_dir.display());
+(B[m[32m+
+(B[m[32m+            info!(
+(B[m[32m+                "Created keystore directory: {}",
+(B[m[32m+                self.keystore_dir.display()
+(B[m[32m+            );
+(B[m         }
+         Ok(())
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:88:
+     /// Load or create metadata file
+     fn load_metadata(&self) -> Result<KeystoreMetadata, SignerError> {
+         let metadata_path = self.metadata_path();
+[31m-        
+(B[m[32m+
+(B[m         if metadata_path.exists() {
+             let data = fs::read(&metadata_path)
+                 .map_err(|e| SignerError::Config(format!("Failed to read metadata: {e}")))?;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:95:
+[31m-            
+(B[m[32m+
+(B[m             serde_json::from_slice(&data)
+                 .map_err(|e| SignerError::Config(format!("Failed to parse metadata: {e}")))
+         } else {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:114:
+         let metadata_path = self.metadata_path();
+         let data = serde_json::to_string_pretty(metadata)
+             .map_err(|e| SignerError::Config(format!("Failed to serialize metadata: {e}")))?;
+[31m-        
+(B[m[32m+
+(B[m         fs::write(&metadata_path, data)
+             .map_err(|e| SignerError::Config(format!("Failed to write metadata: {e}")))?;
+[31m-        
+(B[m[32m+
+(B[m         // Set restrictive permissions (Unix only)
+         #[cfg(unix)]
+         {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:124:
+             use std::os::unix::fs::PermissionsExt;
+             let mut perms = fs::metadata(&metadata_path)
+[31m-                .map_err(|e| SignerError::Config(format!("Failed to get metadata file metadata: {e}")))?
+(B[m[32m+                .map_err(|e| {
+(B[m[32m+                    SignerError::Config(format!("Failed to get metadata file metadata: {e}"))
+(B[m[32m+                })?
+(B[m                 .permissions();
+             perms.set_mode(0o600); // rw-------
+[31m-            fs::set_permissions(&metadata_path, perms)
+(B[m[31m-                .map_err(|e| SignerError::Config(format!("Failed to set metadata file permissions: {e}")))?;
+(B[m[32m+            fs::set_permissions(&metadata_path, perms).map_err(|e| {
+(B[m[32m+                SignerError::Config(format!("Failed to set metadata file permissions: {e}"))
+(B[m[32m+            })?;
+(B[m         }
+[31m-        
+(B[m[32m+
+(B[m         Ok(())
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:136:
+     /// Load keys from the keystore directory (only selected key if specified, otherwise all)
+     fn load_keys(&mut self, password: &str) -> Result<(), SignerError> {
+         let metadata = self.load_metadata()?;
+[31m-        
+(B[m[32m+
+(B[m         if let Some(selected_key) = &self.selected_key_name {
+             // Load only the selected key
+             if metadata.keys.contains(selected_key) {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:172:
+             }
+             info!("Loaded {} keys from file keystore", self.keys.len());
+         }
+[31m-        
+(B[m[32m+
+(B[m         Ok(())
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:179:
+     /// Load a specific key from file
+[31m-    fn load_key_from_file(&self, key_name: &str, password: &str) -> Result<KeyMaterial, SignerError> {
+(B[m[32m+    fn load_key_from_file(
+(B[m[32m+        &self,
+(B[m[32m+        key_name: &str,
+(B[m[32m+        password: &str,
+(B[m[32m+    ) -> Result<KeyMaterial, SignerError> {
+(B[m         let key_path = self.key_file_path(key_name);
+[31m-        
+(B[m[32m+
+(B[m         let jwe_token = fs::read_to_string(&key_path)
+             .map_err(|e| SignerError::Config(format!("Failed to read key file {key_name}: {e}")))?;
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:188:
+     }
+ 
+     /// Save a key to file
+[31m-    fn save_key_to_file(&self, key_name: &str, key_material: &KeyMaterial, password: &str) -> Result<(), SignerError> {
+(B[m[32m+    fn save_key_to_file(
+(B[m[32m+        &self,
+(B[m[32m+        key_name: &str,
+(B[m[32m+        key_material: &KeyMaterial,
+(B[m[32m+        password: &str,
+(B[m[32m+    ) -> Result<(), SignerError> {
+(B[m         let key_path = self.key_file_path(key_name);
+[31m-        
+(B[m[32m+
+(B[m         let jwe_token = encrypt_key(key_material.raw_bytes(), password)?;
+ 
+[31m-        fs::write(&key_path, &jwe_token)
+(B[m[31m-            .map_err(|e| SignerError::Config(format!("Failed to write key file {key_name}: {e}")))?;
+(B[m[32m+        fs::write(&key_path, &jwe_token).map_err(|e| {
+(B[m[32m+            SignerError::Config(format!("Failed to write key file {key_name}: {e}"))
+(B[m[32m+        })?;
+(B[m 
+         // Set restrictive permissions (Unix only)
+         #[cfg(unix)]
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:204:
+                 .map_err(|e| SignerError::Config(format!("Failed to get key file metadata: {e}")))?
+                 .permissions();
+             perms.set_mode(0o600); // rw-------
+[31m-            fs::set_permissions(&key_path, perms)
+(B[m[31m-                .map_err(|e| SignerError::Config(format!("Failed to set key file permissions: {e}")))?;
+(B[m[32m+            fs::set_permissions(&key_path, perms).map_err(|e| {
+(B[m[32m+                SignerError::Config(format!("Failed to set key file permissions: {e}"))
+(B[m[32m+            })?;
+(B[m         }
+ 
+         info!("Saved key '{}' to file keystore", key_name);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:215:
+     /// Add a key to the metadata
+     fn add_key_to_metadata(&self, key_name: &str) -> Result<(), SignerError> {
+         let mut metadata = self.load_metadata()?;
+[31m-        
+(B[m[32m+
+(B[m         if !metadata.keys.contains(&key_name.to_string()) {
+             metadata.keys.push(key_name.to_string());
+             self.save_metadata(&metadata)?;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:222:
+         }
+[31m-        
+(B[m[32m+
+(B[m         Ok(())
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:227:
+     /// Remove a key from the metadata
+     fn remove_key_from_metadata(&self, key_name: &str) -> Result<(), SignerError> {
+         let mut metadata = self.load_metadata()?;
+[31m-        
+(B[m[32m+
+(B[m         metadata.keys.retain(|k| k != key_name);
+         self.save_metadata(&metadata)?;
+[31m-        
+(B[m[32m+
+(B[m         Ok(())
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:243:
+     ) -> Result<(), SignerError> {
+         let backend = FileBackend::new(keystore_dir.to_string());
+         backend.ensure_directory_exists()?;
+[31m-        
+(B[m[32m+
+(B[m         let key_material = KeyMaterial::from_hex(private_key_hex)?;
+         backend.save_key_to_file(key_name, &key_material, password)?;
+         backend.add_key_to_metadata(key_name)?;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:250:
+[31m-        
+(B[m[31m-        info!("Created key '{}' in file keystore at: {}", key_name, keystore_dir);
+(B[m[32m+
+(B[m[32m+        info!(
+(B[m[32m+            "Created key '{}' in file keystore at: {}",
+(B[m[32m+            key_name, keystore_dir
+(B[m[32m+        );
+(B[m         Ok(())
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:266:
+     /// Delete a specific key
+     pub async fn delete_key(&self, key_name: &str) -> Result<(), SignerError> {
+         let key_path = self.key_file_path(key_name);
+[31m-        
+(B[m[32m+
+(B[m         if key_path.exists() {
+[31m-            fs::remove_file(&key_path)
+(B[m[31m-                .map_err(|e| SignerError::Config(format!("Failed to delete key file {key_name}: {e}")))?;
+(B[m[32m+            fs::remove_file(&key_path).map_err(|e| {
+(B[m[32m+                SignerError::Config(format!("Failed to delete key file {key_name}: {e}"))
+(B[m[32m+            })?;
+(B[m         }
+[31m-        
+(B[m[32m+
+(B[m         self.remove_key_from_metadata(key_name)?;
+[31m-        
+(B[m[32m+
+(B[m         info!("Deleted key '{}' from file keystore", key_name);
+         Ok(())
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:281:
+     /// Get the key name to use (selected key or first available)
+     fn get_active_key_name(&self) -> Result<String, SignerError> {
+         if self.keys.is_empty() {
+[31m-            return Err(SignerError::Config("No keys available in keystore".to_string()));
+(B[m[32m+            return Err(SignerError::Config(
+(B[m[32m+                "No keys available in keystore".to_string(),
+(B[m[32m+            ));
+(B[m         }
+ 
+         // If specific key name is selected, use it
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:310:
+         })?;
+ 
+         self.ensure_directory_exists()?;
+[31m-        
+(B[m[32m+
+(B[m         // Check if keystore directory exists and has keys
+         let metadata_path = self.metadata_path();
+         if !metadata_path.exists() {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:317:
+[31m-            warn!("File keystore not initialized at: {}", self.keystore_dir.display());
+(B[m[32m+            warn!(
+(B[m[32m+                "File keystore not initialized at: {}",
+(B[m[32m+                self.keystore_dir.display()
+(B[m[32m+            );
+(B[m             warn!("Use 'create-key' command to add keys to the keystore");
+             return Ok(()); // Not an error, just empty keystore
+         }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:321:
+ 
+         self.password = Some(password.to_string());
+         self.load_keys(password)?;
+[31m-        
+(B[m[32m+
+(B[m         if self.keys.is_empty() {
+[31m-            warn!("No keys found in file keystore: {}", self.keystore_dir.display());
+(B[m[32m+            warn!(
+(B[m[32m+                "No keys found in file keystore: {}",
+(B[m[32m+                self.keystore_dir.display()
+(B[m[32m+            );
+(B[m         }
+[31m-        
+(B[m[32m+
+(B[m         Ok(())
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:332:
+     async fn store_key(&self, key_material: &KeyMaterial) -> Result<(), SignerError> {
+[31m-        let password = self.password.as_ref()
+(B[m[32m+        let password = self
+(B[m[32m+            .password
+(B[m[32m+            .as_ref()
+(B[m             .ok_or_else(|| SignerError::Config("File keystore not initialized".to_string()))?;
+ 
+         // For this implementation, we'll use a default key name
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:337:
+         // In a full implementation, this would be configurable
+         let key_name = "default";
+[31m-        
+(B[m[32m+
+(B[m         self.save_key_to_file(key_name, key_material, password)?;
+         self.add_key_to_metadata(key_name)?;
+[31m-        
+(B[m[32m+
+(B[m         Ok(())
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:346:
+     async fn load_key(&self) -> Result<KeyMaterial, SignerError> {
+         if self.keys.is_empty() {
+[31m-            return Err(SignerError::Config("No keys available in keystore".to_string()));
+(B[m[32m+            return Err(SignerError::Config(
+(B[m[32m+                "No keys available in keystore".to_string(),
+(B[m[32m+            ));
+(B[m         }
+ 
+         let key_name = self.get_active_key_name()?;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:352:
+[31m-        self.keys.get(&key_name)
+(B[m[32m+        self.keys
+(B[m[32m+            .get(&key_name)
+(B[m             .ok_or_else(|| SignerError::Config(format!("Key '{key_name}' not found")))
+             .map(|km| KeyMaterial::from_bytes(*km.raw_bytes()))
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:368:
+         if let Some(parent) = self.keystore_dir.parent() {
+             if !parent.exists() {
+                 return Err(SignerError::Config(format!(
+[31m-                    "Parent directory does not exist: {}", 
+(B[m[32m+                    "Parent directory does not exist: {}",
+(B[m                     parent.display()
+                 )));
+             }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:383:
+                 }
+                 Err(e) => {
+                     return Err(SignerError::Config(format!(
+[31m-                        "Cannot write to keystore directory {}: {}", 
+(B[m[31m-                        self.keystore_dir.display(), 
+(B[m[32m+                        "Cannot write to keystore directory {}: {}",
+(B[m[32m+                        self.keystore_dir.display(),
+(B[m                         e
+                     )));
+                 }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:421:
+     async fn test_file_backend_creation() {
+         let temp_dir = TempDir::new().unwrap();
+         let keystore_path = temp_dir.path().to_str().unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let backend = FileBackend::new(keystore_path.to_string());
+         assert_eq!(backend.backend_type(), "file");
+         assert_eq!(backend.keystore_dir, PathBuf::from(keystore_path));
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:443:
+         // Load keystore
+         let mut backend = FileBackend::new(keystore_path.to_string());
+         backend.init(Some(password)).await.unwrap();
+[31m-        
+(B[m[32m+
+(B[m         assert!(backend.is_available());
+         assert!(backend.has_key(key_name));
+[31m-        
+(B[m[32m+
+(B[m         let loaded_key = backend.load_key().await.unwrap();
+         assert_eq!(loaded_key.to_hex(), private_key);
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:459:
+ 
+         // Create multiple keys
+         FileBackend::create_key(
+[31m-            keystore_path, 
+(B[m[31m-            "key1", 
+(B[m[31m-            "1111111111111111111111111111111111111111111111111111111111111111", 
+(B[m[31m-            password
+(B[m[31m-        ).await.unwrap();
+(B[m[31m-        
+(B[m[32m+            keystore_path,
+(B[m[32m+            "key1",
+(B[m[32m+            "1111111111111111111111111111111111111111111111111111111111111111",
+(B[m[32m+            password,
+(B[m[32m+        )
+(B[m[32m+        .await
+(B[m[32m+        .unwrap();
+(B[m[32m+
+(B[m         FileBackend::create_key(
+[31m-            keystore_path, 
+(B[m[31m-            "key2", 
+(B[m[31m-            "2222222222222222222222222222222222222222222222222222222222222222", 
+(B[m[31m-            password
+(B[m[31m-        ).await.unwrap();
+(B[m[32m+            keystore_path,
+(B[m[32m+            "key2",
+(B[m[32m+            "2222222222222222222222222222222222222222222222222222222222222222",
+(B[m[32m+            password,
+(B[m[32m+        )
+(B[m[32m+        .await
+(B[m[32m+        .unwrap();
+(B[m 
+         // Load keystore
+         let mut backend = FileBackend::new(keystore_path.to_string());
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:477:
+         backend.init(Some(password)).await.unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let keys = backend.list_keys().unwrap();
+         assert_eq!(keys.len(), 2);
+         assert!(keys.contains(&"key1".to_string()));
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:486:
+     fn test_validate_config() {
+         let temp_dir = TempDir::new().unwrap();
+         let keystore_path = temp_dir.path().to_str().unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let backend = FileBackend::new(keystore_path.to_string());
+         assert!(backend.validate_config().is_ok());
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/file.rs:496:
+         let backend = FileBackend::new("/nonexistent/parent/dir".to_string());
+         assert!(backend.validate_config().is_err());
+     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/mod.rs:1:
+[31m-use async_trait::async_trait;
+(B[m use crate::errors::SignerError;
+ use crate::keystore::key_material::KeyMaterial;
+[32m+use async_trait::async_trait;
+(B[m 
+ /// Trait for keystore backends that provide secure key storage and retrieval
+ #[async_trait]
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/mod.rs:27:
+ 
+     /// Delete key from secure storage (if supported)
+     async fn delete_key(&self) -> Result<(), SignerError> {
+[31m-        Err(SignerError::Config(
+(B[m[31m-            format!("{} backend does not support key deletion", self.backend_type())
+(B[m[31m-        ))
+(B[m[32m+        Err(SignerError::Config(format!(
+(B[m[32m+            "{} backend does not support key deletion",
+(B[m[32m+            self.backend_type()
+(B[m[32m+        )))
+(B[m     }
+ }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/mod.rs:37:
+ #[derive(Debug, Clone)]
+ pub enum BackendConfig {
+     /// Software-based encrypted storage (single file)
+[31m-    Software { 
+(B[m[31m-        keystore_path: String,
+(B[m[31m-    },
+(B[m[32m+    Software { keystore_path: String },
+(B[m     /// File-based encrypted storage (directory with multiple key files)
+[31m-    File { 
+(B[m[32m+    File {
+(B[m         keystore_dir: String,
+         key_name: Option<String>,
+     },
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/mod.rs:48:
+     /// Environment variable (less secure, for development)
+[31m-    Environment { 
+(B[m[31m-        var_name: String,
+(B[m[31m-    },
+(B[m[32m+    Environment { var_name: String },
+(B[m     /// OS keyring integration
+[31m-    OsKeyring { 
+(B[m[31m-        key_name: String,
+(B[m[31m-    },
+(B[m[32m+    OsKeyring { key_name: String },
+(B[m     /// Hardware Security Module (future)
+     #[allow(dead_code)]
+[31m-    Hsm { 
+(B[m[31m-        device_path: String,
+(B[m[31m-    },
+(B[m[32m+    Hsm { device_path: String },
+(B[m }
+ 
+ impl BackendConfig {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/mod.rs:66:
+         match self {
+             BackendConfig::Software { .. } => "software",
+             BackendConfig::File { .. } => "file",
+[31m-            BackendConfig::Environment { .. } => "environment", 
+(B[m[32m+            BackendConfig::Environment { .. } => "environment",
+(B[m             BackendConfig::OsKeyring { .. } => "os_keyring",
+             BackendConfig::Hsm { .. } => "hsm",
+         }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/mod.rs:74:
+ }
+ 
+ // Backend implementations
+[31m-pub mod software;
+(B[m[31m-pub mod file;
+(B[m pub mod environment;
+[32m+pub mod file;
+(B[m pub mod os_keyring;
+[32m+pub mod software;
+(B[m 
+ // Re-exports for convenience
+[31m-pub use software::SoftwareBackend;
+(B[m[31m-pub use file::FileBackend;
+(B[m pub use environment::EnvironmentBackend;
+[31m-pub use os_keyring::OsKeyringBackend; 
+(B[m[32m+pub use file::FileBackend;
+(B[m[32m+pub use os_keyring::OsKeyringBackend;
+(B[m[32m+pub use software::SoftwareBackend;
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:32:
+         #[cfg(any(target_os = "linux", target_os = "macos"))]
+         {
+             use keyring::Entry;
+[31m-            
+(B[m[31m-            info!("Creating keyring entry for service: '{}', account: '{}'", Self::service_name(), self.key_name);
+(B[m[32m+
+(B[m[32m+            info!(
+(B[m[32m+                "Creating keyring entry for service: '{}', account: '{}'",
+(B[m[32m+                Self::service_name(),
+(B[m[32m+                self.key_name
+(B[m[32m+            );
+(B[m             let entry = Entry::new(Self::service_name(), &self.key_name)
+                 .map_err(|e| SignerError::Config(format!("Failed to create keyring entry: {e}")))?;
+[31m-            
+(B[m[32m+
+(B[m             info!("Storing key in keyring...");
+[31m-            entry.set_password(private_key_hex)
+(B[m[32m+            entry
+(B[m[32m+                .set_password(private_key_hex)
+(B[m                 .map_err(|e| SignerError::Config(format!("Failed to store key in keyring: {e}")))?;
+[31m-            
+(B[m[32m+
+(B[m             info!("✅ Stored private key '{}' in OS keyring", self.key_name);
+[31m-            
+(B[m[32m+
+(B[m             // Verify the key was stored by trying to retrieve it
+             info!("Verifying key storage...");
+             match entry.get_password() {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:50:
+                     if retrieved == private_key_hex {
+                         info!("✅ Key verification successful");
+                     } else {
+[31m-                        warn!("⚠️  Key verification failed: retrieved key doesn't match stored key");
+(B[m[32m+                        warn!(
+(B[m[32m+                            "⚠️  Key verification failed: retrieved key doesn't match stored key"
+(B[m[32m+                        );
+(B[m                     }
+                 }
+                 Err(e) => {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:57:
+                     warn!("⚠️  Key verification failed: {}", e);
+                 }
+             }
+[31m-            
+(B[m[32m+
+(B[m             Ok(())
+         }
+[31m-        
+(B[m[32m+
+(B[m         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+         {
+             Err(SignerError::Config(
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:67:
+[31m-                "OS keyring backend is only supported on Linux and macOS".to_string()
+(B[m[32m+                "OS keyring backend is only supported on Linux and macOS".to_string(),
+(B[m             ))
+         }
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:74:
+         #[cfg(any(target_os = "linux", target_os = "macos"))]
+         {
+             use keyring::Entry;
+[31m-            
+(B[m[32m+
+(B[m             let entry = Entry::new(Self::service_name(), &self.key_name)
+                 .map_err(|e| SignerError::Config(format!("Failed to create keyring entry: {e}")))?;
+[31m-            
+(B[m[31m-            let private_key_hex = entry.get_password()
+(B[m[31m-                .map_err(|e| SignerError::Config(format!("Failed to load key from keyring: {e}")))?;
+(B[m 
+[32m+            let private_key_hex = entry.get_password().map_err(|e| {
+(B[m[32m+                SignerError::Config(format!("Failed to load key from keyring: {e}"))
+(B[m[32m+            })?;
+(B[m[32m+
+(B[m             // Validate the retrieved key
+             if private_key_hex.is_empty() {
+[31m-                return Err(SignerError::InvalidKey("Retrieved private key is empty".to_string()));
+(B[m[32m+                return Err(SignerError::InvalidKey(
+(B[m[32m+                    "Retrieved private key is empty".to_string(),
+(B[m[32m+                ));
+(B[m             }
+ 
+             if !private_key_hex.chars().all(|c| c.is_ascii_hexdigit()) {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:90:
+[31m-                return Err(SignerError::InvalidKey("Retrieved private key is not valid hex".to_string()));
+(B[m[32m+                return Err(SignerError::InvalidKey(
+(B[m[32m+                    "Retrieved private key is not valid hex".to_string(),
+(B[m[32m+                ));
+(B[m             }
+ 
+             if private_key_hex.len() != 64 {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:94:
+[31m-                return Err(SignerError::InvalidKey("Retrieved private key has invalid length".to_string()));
+(B[m[32m+                return Err(SignerError::InvalidKey(
+(B[m[32m+                    "Retrieved private key has invalid length".to_string(),
+(B[m[32m+                ));
+(B[m             }
+ 
+             self.key_material = Some(KeyMaterial::from_hex(&private_key_hex)?);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:98:
+             info!("Loaded private key '{}' from OS keyring", self.key_name);
+             Ok(())
+         }
+[31m-        
+(B[m[32m+
+(B[m         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+         {
+             Err(SignerError::Config(
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:105:
+[31m-                "OS keyring backend is only supported on Linux and macOS".to_string()
+(B[m[32m+                "OS keyring backend is only supported on Linux and macOS".to_string(),
+(B[m             ))
+         }
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:112:
+         #[cfg(any(target_os = "linux", target_os = "macos"))]
+         {
+             use keyring::Entry;
+[31m-            
+(B[m[32m+
+(B[m             if let Ok(entry) = Entry::new(Self::service_name(), &self.key_name) {
+                 entry.get_password().is_ok()
+             } else {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:119:
+                 false
+             }
+         }
+[31m-        
+(B[m[32m+
+(B[m         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+         {
+             false
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:131:
+         #[cfg(any(target_os = "linux", target_os = "macos"))]
+         {
+             use keyring::Entry;
+[31m-            
+(B[m[31m-            info!("Creating keyring entry for deletion - service: '{}', account: '{}'", Self::service_name(), self.key_name);
+(B[m[32m+
+(B[m[32m+            info!(
+(B[m[32m+                "Creating keyring entry for deletion - service: '{}', account: '{}'",
+(B[m[32m+                Self::service_name(),
+(B[m[32m+                self.key_name
+(B[m[32m+            );
+(B[m             let entry = Entry::new(Self::service_name(), &self.key_name)
+                 .map_err(|e| SignerError::Config(format!("Failed to create keyring entry: {e}")))?;
+[31m-            
+(B[m[32m+
+(B[m             // First check if the key exists
+             info!("Checking if key exists before deletion...");
+             match entry.get_password() {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:144:
+                 }
+                 Err(e) => {
+                     warn!("⚠️  Key not found in keyring: {}", e);
+[31m-                    return Err(SignerError::Config(format!("Key '{}' not found in keyring: {e}", self.key_name)));
+(B[m[32m+                    return Err(SignerError::Config(format!(
+(B[m[32m+                        "Key '{}' not found in keyring: {e}",
+(B[m[32m+                        self.key_name
+(B[m[32m+                    )));
+(B[m                 }
+             }
+[31m-            
+(B[m[32m+
+(B[m             info!("Deleting key from keyring...");
+[31m-            entry.delete_credential()
+(B[m[31m-                .map_err(|e| SignerError::Config(format!("Failed to delete key from keyring: {e}")))?;
+(B[m[31m-            
+(B[m[32m+            entry.delete_credential().map_err(|e| {
+(B[m[32m+                SignerError::Config(format!("Failed to delete key from keyring: {e}"))
+(B[m[32m+            })?;
+(B[m[32m+
+(B[m             info!("✅ Deleted private key '{}' from OS keyring", self.key_name);
+             Ok(())
+         }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:158:
+[31m-        
+(B[m[32m+
+(B[m         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+         {
+             Err(SignerError::Config(
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:162:
+[31m-                "OS keyring backend is only supported on Linux and macOS".to_string()
+(B[m[32m+                "OS keyring backend is only supported on Linux and macOS".to_string(),
+(B[m             ))
+         }
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:169:
+         #[cfg(target_os = "linux")]
+         {
+             // Check if we're in a desktop session or have access to D-Bus
+[31m-            if std::env::var("XDG_RUNTIME_DIR").is_err() && std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err() {
+(B[m[32m+            if std::env::var("XDG_RUNTIME_DIR").is_err()
+(B[m[32m+                && std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err()
+(B[m[32m+            {
+(B[m                 warn!("⚠️  No desktop session detected. OS keyring may not be available.");
+                 warn!("⚠️  Consider running in a user session or using a different backend.");
+             }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:185:
+         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+         {
+             Err(SignerError::Config(
+[31m-                "OS keyring backend is only supported on Linux and macOS".to_string()
+(B[m[32m+                "OS keyring backend is only supported on Linux and macOS".to_string(),
+(B[m             ))
+         }
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:195:
+ impl KeystoreBackend for OsKeyringBackend {
+     async fn init(&mut self, _config: Option<&str>) -> Result<(), SignerError> {
+         Self::check_keyring_availability()?;
+[31m-        
+(B[m[32m+
+(B[m         // Only try to load the key if it exists in the keyring
+         // This allows for operations like delete without requiring the key to be loaded first
+         if self.key_exists_in_keyring() {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:202:
+             self.load_key_from_keyring()?;
+         }
+[31m-        
+(B[m[32m+
+(B[m         Ok(())
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:224:
+         {
+             Self::check_keyring_availability().is_ok() && self.key_exists_in_keyring()
+         }
+[31m-        
+(B[m[32m+
+(B[m         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+         {
+             false
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:237:
+ 
+     fn validate_config(&self) -> Result<(), SignerError> {
+         Self::check_keyring_availability()?;
+[31m-        
+(B[m[32m+
+(B[m         if self.key_name.is_empty() {
+             return Err(SignerError::Config("Key name cannot be empty".to_string()));
+         }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:246:
+         #[cfg(target_os = "linux")]
+         {
+             info!("OS Keyring: Using Linux Secret Service (GNOME Keyring/KDE Wallet)");
+[31m-            info!("Service: '{}', Key: '{}'", Self::service_name(), self.key_name);
+(B[m[32m+            info!(
+(B[m[32m+                "Service: '{}', Key: '{}'",
+(B[m[32m+                Self::service_name(),
+(B[m[32m+                self.key_name
+(B[m[32m+            );
+(B[m             if std::env::var("XDG_RUNTIME_DIR").is_err() {
+                 warn!("XDG_RUNTIME_DIR not set - keyring may not be accessible");
+             }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:255:
+         #[cfg(target_os = "macos")]
+         {
+             info!("OS Keyring: Using macOS Keychain");
+[31m-            info!("Service: '{}', Key: '{}'", Self::service_name(), self.key_name);
+(B[m[32m+            info!(
+(B[m[32m+                "Service: '{}', Key: '{}'",
+(B[m[32m+                Self::service_name(),
+(B[m[32m+                self.key_name
+(B[m[32m+            );
+(B[m         }
+ 
+         Ok(())
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:282:
+     #[test]
+     fn test_keyring_backend_creation() {
+         let backend = OsKeyringBackend::new("validator-mainnet".to_string());
+[31m-        
+(B[m[32m+
+(B[m         assert_eq!(backend.backend_type(), "os_keyring");
+         assert_eq!(backend.key_name, "validator-mainnet");
+         assert_eq!(OsKeyringBackend::service_name(), "starknet-signer");
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/os_keyring.rs:306:
+         let backend = OsKeyringBackend::new("".to_string());
+         assert!(backend.validate_config().is_err());
+     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/software.rs:5:
+ 
+ use crate::errors::SignerError;
+ use crate::keystore::backends::KeystoreBackend;
+[32m+use crate::keystore::encryption::{decrypt_key, encrypt_key};
+(B[m use crate::keystore::key_material::KeyMaterial;
+[31m-use crate::keystore::encryption::{encrypt_key, decrypt_key};
+(B[m 
+ /// Software-based keystore backend using encrypted files
+ #[derive(Debug)]
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/software.rs:44:
+                 .map_err(|e| SignerError::Config(format!("Failed to get keystore metadata: {e}")))?
+                 .permissions();
+             perms.set_mode(0o600); // rw-------
+[31m-            fs::set_permissions(keystore_path, perms)
+(B[m[31m-                .map_err(|e| SignerError::Config(format!("Failed to set keystore permissions: {e}")))?;
+(B[m[32m+            fs::set_permissions(keystore_path, perms).map_err(|e| {
+(B[m[32m+                SignerError::Config(format!("Failed to set keystore permissions: {e}"))
+(B[m[32m+            })?;
+(B[m         }
+ 
+         info!("Created encrypted keystore at: {}", keystore_path);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/software.rs:73:
+         })?;
+ 
+         let path = Path::new(&self.keystore_path);
+[31m-        
+(B[m[32m+
+(B[m         if !path.exists() {
+             return Err(SignerError::Config(format!(
+                 "Keystore file {} does not exist. Use 'init' command to create it.",
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/software.rs:110:
+ 
+     fn validate_config(&self) -> Result<(), SignerError> {
+         let path = Path::new(&self.keystore_path);
+[31m-        
+(B[m[32m+
+(B[m         if !path.exists() {
+             warn!("Keystore file does not exist: {}", self.keystore_path);
+             return Ok(()); // Not an error during validation, will fail at init
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/backends/software.rs:122:
+ 
+         Ok(())
+     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/encryption.rs:8:
+ pub type EncryptedKeystore = String;
+ 
+ /// Encrypt private key using JOSE JWE with PBES2-HS256+A128KW and A256GCM
+[31m-pub fn encrypt_key(private_key: &[u8; 32], passphrase: &str) -> Result<EncryptedKeystore, SignerError> {
+(B[m[32m+pub fn encrypt_key(
+(B[m[32m+    private_key: &[u8; 32],
+(B[m[32m+    passphrase: &str,
+(B[m[32m+) -> Result<EncryptedKeystore, SignerError> {
+(B[m     // Create JWE header with PBES2-HS256+A128KW key management and A256GCM content encryption
+     let mut header = JweHeader::new();
+     header.set_algorithm("PBES2-HS256+A128KW");
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/encryption.rs:15:
+     header.set_content_encryption("A256GCM");
+[31m-    
+(B[m[32m+
+(B[m     // Create encrypter from password
+[31m-    let encrypter = PBES2_HS256_A128KW.encrypter_from_bytes(passphrase.as_bytes())
+(B[m[32m+    let encrypter = PBES2_HS256_A128KW
+(B[m[32m+        .encrypter_from_bytes(passphrase.as_bytes())
+(B[m         .map_err(|e| SignerError::Crypto(format!("Failed to create encrypter: {e}")))?;
+ 
+     // Encrypt the private key data
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/encryption.rs:28:
+ /// Decrypt private key from JOSE JWE token
+ pub fn decrypt_key(jwe_token: &str, passphrase: &str) -> Result<[u8; 32], SignerError> {
+     // Create decrypter from password
+[31m-    let decrypter = PBES2_HS256_A128KW.decrypter_from_bytes(passphrase.as_bytes())
+(B[m[32m+    let decrypter = PBES2_HS256_A128KW
+(B[m[32m+        .decrypter_from_bytes(passphrase.as_bytes())
+(B[m         .map_err(|e| SignerError::Crypto(format!("Failed to create decrypter: {e}")))?;
+ 
+     // Decrypt the JWE token
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/encryption.rs:47:
+     let mut key = [0u8; 32];
+     key.copy_from_slice(&decrypted_data);
+     Ok(key)
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/key_material.rs:27:
+                 Ok(bytes) if bytes.len() == 32 => {
+                     let mut key_bytes = [0u8; 32];
+                     key_bytes.copy_from_slice(&bytes);
+[31m-                    return Ok(Self { private_key: key_bytes });
+(B[m[32m+                    return Ok(Self {
+(B[m[32m+                        private_key: key_bytes,
+(B[m[32m+                    });
+(B[m                 }
+                 _ => {}
+             }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/key_material.rs:34:
+         }
+[31m-        
+(B[m[32m+
+(B[m         // Fallback to Felt parsing for other formats
+         let key_felt = Felt::from_hex(hex_key)
+             .map_err(|e| SignerError::InvalidKey(format!("Invalid private key hex: {e}")))?;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/key_material.rs:39:
+[31m-        
+(B[m[32m+
+(B[m         let key_bytes = key_felt.to_bytes_be();
+[31m-        
+(B[m[32m+
+(B[m         Ok(Self {
+             private_key: key_bytes,
+         })
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/key_material.rs:46:
+ 
+     /// Create key material from bytes
+     pub fn from_bytes(bytes: [u8; 32]) -> Self {
+[31m-        Self {
+(B[m[31m-            private_key: bytes,
+(B[m[31m-        }
+(B[m[32m+        Self { private_key: bytes }
+(B[m     }
+ 
+     /// Get the signing key
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/key_material.rs:72:
+     pub fn raw_bytes(&self) -> &[u8; 32] {
+         &self.private_key
+     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/mod.rs:8:
+ 
+ // Re-export sub-modules
+ pub mod backends;
+[31m-pub mod key_material;
+(B[m pub mod encryption;
+[32m+pub mod key_material;
+(B[m 
+ // Re-export commonly used types
+ pub use backends::{BackendConfig, KeystoreBackend};
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/mod.rs:16:
+[31m-pub use key_material::KeyMaterial;
+(B[m pub use encryption::EncryptedKeystore;
+[32m+pub use key_material::KeyMaterial;
+(B[m 
+ // Re-export backend implementations
+[31m-pub use backends::{SoftwareBackend, FileBackend, EnvironmentBackend, OsKeyringBackend};
+(B[m[32m+pub use backends::{EnvironmentBackend, FileBackend, OsKeyringBackend, SoftwareBackend};
+(B[m 
+ /// Main keystore for managing validator keys using pluggable backends
+ #[derive(Debug)]
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/mod.rs:32:
+             BackendConfig::Software { keystore_path } => {
+                 Box::new(SoftwareBackend::new(keystore_path))
+             }
+[31m-            BackendConfig::File { keystore_dir, key_name } => {
+(B[m[31m-                Box::new(FileBackend::new_with_key(keystore_dir, key_name))
+(B[m[31m-            }
+(B[m[31m-            BackendConfig::Environment { var_name } => {
+(B[m[31m-                Box::new(EnvironmentBackend::new(var_name))
+(B[m[31m-            }
+(B[m[31m-            BackendConfig::OsKeyring { key_name } => {
+(B[m[31m-                Box::new(OsKeyringBackend::new(key_name))
+(B[m[31m-            }
+(B[m[32m+            BackendConfig::File {
+(B[m[32m+                keystore_dir,
+(B[m[32m+                key_name,
+(B[m[32m+            } => Box::new(FileBackend::new_with_key(keystore_dir, key_name)),
+(B[m[32m+            BackendConfig::Environment { var_name } => Box::new(EnvironmentBackend::new(var_name)),
+(B[m[32m+            BackendConfig::OsKeyring { key_name } => Box::new(OsKeyringBackend::new(key_name)),
+(B[m             BackendConfig::Hsm { .. } => {
+                 return Err(SignerError::Config(
+[31m-                    "HSM backend not yet implemented".to_string()
+(B[m[32m+                    "HSM backend not yet implemented".to_string(),
+(B[m                 ));
+             }
+         };
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/mod.rs:50:
+ 
+         info!("Created keystore with backend: {}", backend.backend_type());
+[31m-        
+(B[m[32m+
+(B[m         Ok(Self { backend })
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/mod.rs:56:
+     /// Initialize keystore and load/create keys
+     pub async fn init(&mut self, config: Option<&str>) -> Result<(), SignerError> {
+[31m-        info!("Initializing keystore backend: {}", self.backend.backend_type());
+(B[m[31m-        
+(B[m[32m+        info!(
+(B[m[32m+            "Initializing keystore backend: {}",
+(B[m[32m+            self.backend.backend_type()
+(B[m[32m+        );
+(B[m[32m+
+(B[m         // Validate backend configuration first
+         self.backend.validate_config()?;
+[31m-        
+(B[m[32m+
+(B[m         // Initialize the backend
+         self.backend.init(config).await?;
+[31m-        
+(B[m[32m+
+(B[m         info!("✅ Keystore initialized successfully");
+         Ok(())
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/mod.rs:184:
+         assert_eq!(keystore.backend_type(), "environment");
+ 
+         keystore.init(None).await.unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let loaded_key = keystore.signing_key().await.unwrap();
+         let expected_key = SigningKey::from_secret_scalar(Felt::from_hex(private_key).unwrap());
+[31m-        
+(B[m[32m+
+(B[m         assert_eq!(loaded_key.secret_scalar(), expected_key.secret_scalar());
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/mod.rs:210:
+ 
+         let mut keystore = Keystore::new(config).unwrap();
+         assert_eq!(keystore.backend_type(), "software");
+[31m-        
+(B[m[32m+
+(B[m         keystore.init(Some(passphrase)).await.unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let loaded_key = keystore.signing_key().await.unwrap();
+         let expected_key = SigningKey::from_secret_scalar(Felt::from_hex(private_key).unwrap());
+[31m-        
+(B[m[32m+
+(B[m         assert_eq!(loaded_key.secret_scalar(), expected_key.secret_scalar());
+     }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/keystore/mod.rs:245:
+         let hsm_config = BackendConfig::Hsm {
+             device_path: "/dev/hsm0".to_string(),
+         };
+[31m-        
+(B[m[32m+
+(B[m         let result = Keystore::new(hsm_config);
+         assert!(result.is_err());
+[31m-        assert!(result.unwrap_err().to_string().contains("not yet implemented"));
+(B[m[32m+        assert!(result
+(B[m[32m+            .unwrap_err()
+(B[m[32m+            .to_string()
+(B[m[32m+            .contains("not yet implemented"));
+(B[m     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/lib.rs:1:
+ use clap::Parser;
+ 
+[32m+pub mod audit;
+(B[m pub mod config;
+ pub mod errors;
+[31m-pub mod keystore;
+(B[m pub mod key_management;
+[32m+pub mod keystore;
+(B[m[32m+pub mod security;
+(B[m pub mod server;
+ pub mod signer;
+[31m-pub mod audit;
+(B[m[31m-pub mod security;
+(B[m pub mod utils;
+ 
+ pub use config::Config;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/lib.rs:176:
+ 
+ // Integration tests
+ #[cfg(test)]
+[31m-pub mod integration_test; 
+(B[m[32m+pub mod integration_test;
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:1:
+[31m-use std::collections::HashSet;
+(B[m[31m-use std::net::IpAddr;
+(B[m use starknet::core::utils::parse_cairo_short_string;
+ use starknet_crypto::Felt;
+[32m+use std::collections::HashSet;
+(B[m[32m+use std::net::IpAddr;
+(B[m 
+ use crate::errors::SignerError;
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:13:
+ }
+ 
+ impl SecurityValidator {
+[31m-    pub fn new(allowed_chain_ids: Vec<String>, allowed_ips: Vec<String>) -> Result<Self, SignerError> {
+(B[m[32m+    pub fn new(
+(B[m[32m+        allowed_chain_ids: Vec<String>,
+(B[m[32m+        allowed_ips: Vec<String>,
+(B[m[32m+    ) -> Result<Self, SignerError> {
+(B[m         let mut chain_ids = HashSet::new();
+         let mut chain_ids_hex = HashSet::new();
+[31m-        
+(B[m[32m+
+(B[m         // Process allowed chain IDs
+         for chain_id in allowed_chain_ids {
+             chain_ids.insert(chain_id.clone());
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:23:
+[31m-            
+(B[m[32m+
+(B[m             // Convert known chain IDs to Felt
+             let felt_id = match chain_id.as_str() {
+                 "SN_MAIN" => {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:35:
+                 }
+                 _ => {
+                     // Try to parse as hex
+[31m-                    Felt::from_hex(&chain_id)
+(B[m[31m-                        .map_err(|e| SignerError::Config(format!("Invalid chain ID {chain_id}: {e}")))?
+(B[m[32m+                    Felt::from_hex(&chain_id).map_err(|e| {
+(B[m[32m+                        SignerError::Config(format!("Invalid chain ID {chain_id}: {e}"))
+(B[m[32m+                    })?
+(B[m                 }
+             };
+             chain_ids_hex.insert(felt_id);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:43:
+         }
+[31m-        
+(B[m[32m+
+(B[m         // Process allowed IPs
+         let mut ips = HashSet::new();
+         for ip_str in allowed_ips {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:48:
+[31m-            let ip: IpAddr = ip_str.parse()
+(B[m[32m+            let ip: IpAddr = ip_str
+(B[m[32m+                .parse()
+(B[m                 .map_err(|_| SignerError::Config(format!("Invalid IP address: {ip_str}")))?;
+             ips.insert(ip);
+         }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:52:
+[31m-        
+(B[m[32m+
+(B[m         Ok(Self {
+             allowed_chain_ids: chain_ids,
+             allowed_chain_ids_hex: chain_ids_hex,
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:56:
+             allowed_ips: ips,
+         })
+     }
+[31m-    
+(B[m[32m+
+(B[m     pub fn validate_ip(&self, ip: &IpAddr) -> Result<(), SignerError> {
+         // If no IPs configured, allow all
+         if self.allowed_ips.is_empty() {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:63:
+             return Ok(());
+         }
+[31m-        
+(B[m[32m+
+(B[m         if !self.allowed_ips.contains(ip) {
+             return Err(SignerError::Unauthorized(format!(
+                 "IP address {ip} is not allowed"
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:69:
+             )));
+         }
+[31m-        
+(B[m[32m+
+(B[m         Ok(())
+     }
+[31m-    
+(B[m[32m+
+(B[m     pub fn validate_chain_id(&self, chain_id: Felt) -> Result<(), SignerError> {
+         // If no chain IDs configured, allow all
+         if self.allowed_chain_ids.is_empty() && self.allowed_chain_ids_hex.is_empty() {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:78:
+             return Ok(());
+         }
+[31m-        
+(B[m[32m+
+(B[m         // Check if chain ID matches any allowed value
+         if self.allowed_chain_ids_hex.contains(&chain_id) {
+             return Ok(());
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:84:
+         }
+[31m-        
+(B[m[32m+
+(B[m         // Try to parse as string and check
+         if let Ok(chain_str) = parse_cairo_short_string(&chain_id) {
+             if self.allowed_chain_ids.contains(&chain_str) {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:89:
+                 return Ok(());
+             }
+         }
+[31m-        
+(B[m[32m+
+(B[m         Err(SignerError::Unauthorized(format!(
+             "Chain ID {chain_id} is not allowed"
+         )))
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:100:
+ mod tests {
+     use super::*;
+     use starknet::macros::felt;
+[31m-    
+(B[m[32m+
+(B[m     #[test]
+     fn test_chain_id_validation() {
+         let validator = SecurityValidator::new(
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:107:
+             vec!["SN_MAIN".to_string(), "SN_SEPOLIA".to_string()],
+[31m-            vec![]
+(B[m[31m-        ).unwrap();
+(B[m[31m-        
+(B[m[32m+            vec![],
+(B[m[32m+        )
+(B[m[32m+        .unwrap();
+(B[m[32m+
+(B[m         // Test valid chain IDs
+[31m-        assert!(validator.validate_chain_id(felt!("0x534e5f4d41494e")).is_ok()); // SN_MAIN
+(B[m[31m-        assert!(validator.validate_chain_id(felt!("0x534e5f5345504f4c4941")).is_ok()); // SN_SEPOLIA
+(B[m[31m-        
+(B[m[32m+        assert!(validator
+(B[m[32m+            .validate_chain_id(felt!("0x534e5f4d41494e"))
+(B[m[32m+            .is_ok()); // SN_MAIN
+(B[m[32m+        assert!(validator
+(B[m[32m+            .validate_chain_id(felt!("0x534e5f5345504f4c4941"))
+(B[m[32m+            .is_ok()); // SN_SEPOLIA
+(B[m[32m+
+(B[m         // Test invalid chain ID
+         assert!(validator.validate_chain_id(felt!("0x1234")).is_err());
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:118:
+[31m-    
+(B[m[32m+
+(B[m     #[test]
+     fn test_ip_validation() {
+         let validator = SecurityValidator::new(
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:122:
+             vec![],
+[31m-            vec!["127.0.0.1".to_string(), "10.0.0.1".to_string()]
+(B[m[31m-        ).unwrap();
+(B[m[31m-        
+(B[m[32m+            vec!["127.0.0.1".to_string(), "10.0.0.1".to_string()],
+(B[m[32m+        )
+(B[m[32m+        .unwrap();
+(B[m[32m+
+(B[m         // Test valid IPs
+         assert!(validator.validate_ip(&"127.0.0.1".parse().unwrap()).is_ok());
+         assert!(validator.validate_ip(&"10.0.0.1".parse().unwrap()).is_ok());
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:129:
+[31m-        
+(B[m[32m+
+(B[m         // Test invalid IP
+[31m-        assert!(validator.validate_ip(&"192.168.1.1".parse().unwrap()).is_err());
+(B[m[32m+        assert!(validator
+(B[m[32m+            .validate_ip(&"192.168.1.1".parse().unwrap())
+(B[m[32m+            .is_err());
+(B[m     }
+[31m-    
+(B[m[32m+
+(B[m     #[test]
+     fn test_empty_allows_all() {
+         let validator = SecurityValidator::new(vec![], vec![]).unwrap();
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:137:
+[31m-        
+(B[m[32m+
+(B[m         // Should allow any chain ID
+         assert!(validator.validate_chain_id(felt!("0x1234")).is_ok());
+[31m-        
+(B[m[32m+
+(B[m         // Should allow any IP
+         assert!(validator.validate_ip(&"1.2.3.4".parse().unwrap()).is_ok());
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/security.rs:144:
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:8:
+ use serde::{Deserialize, Serialize};
+ use starknet::core::types::BroadcastedInvokeTransactionV3;
+ use starknet_crypto::Felt;
+[31m-use std::net::{SocketAddr};
+(B[m[32m+use std::net::SocketAddr;
+(B[m use std::sync::atomic::{AtomicU64, Ordering};
+ use std::sync::Arc;
+ use tower::ServiceBuilder;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:19:
+ use crate::config::Config;
+ use crate::errors::SignerError;
+ use crate::security::SecurityValidator;
+[31m-use crate::signer::{StarknetSigner, compute_transaction_hash};
+(B[m[32m+use crate::signer::{compute_transaction_hash, StarknetSigner};
+(B[m use crate::utils::{extract_real_ip, validate_ip_access, TlsManager};
+ 
+ /// Shared application state
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:82:
+         // Initialize keystore
+         let mut keystore = config.create_keystore().await?;
+         keystore.init(config.passphrase.as_deref()).await?;
+[31m-        
+(B[m[32m+
+(B[m         let signer = StarknetSigner::new(keystore).await?;
+         let metrics = Arc::new(Metrics::default());
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:89:
+         // Initialize security validator (always create for proper validation)
+         let security = SecurityValidator::new(
+[31m-                config.security.allowed_chain_ids.clone(),
+(B[m[31m-                config.security.allowed_ips.clone(),
+(B[m[32m+            config.security.allowed_chain_ids.clone(),
+(B[m[32m+            config.security.allowed_ips.clone(),
+(B[m         )?;
+ 
+         // Initialize audit logger if configured
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:114:
+         let app = self.create_router();
+ 
+         let addr = SocketAddr::new(
+[31m-            self.config.server.address.parse()
+(B[m[32m+            self.config
+(B[m[32m+                .server
+(B[m[32m+                .address
+(B[m[32m+                .parse()
+(B[m                 .map_err(|e| SignerError::Config(format!("Invalid bind address: {e}")))?,
+             self.config.server.port,
+         );
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:121:
+ 
+         info!("🚀 Starknet Remote Signer starting on {}", addr);
+[31m-        
+(B[m[32m+
+(B[m         // Create TLS manager
+         let tls_manager = TlsManager::new(self.config.tls.clone());
+[31m-        
+(B[m[32m+
+(B[m         // Log TLS configuration
+         info!("TLS Configuration: {}", tls_manager.get_config_summary());
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:164:
+     let real_ip = match validate_ip_access(&state.security, &headers, &addr) {
+         Ok(ip) => ip,
+         Err(_) => {
+[31m-            warn!("Rejected health check from unauthorized IP: {}", extract_real_ip(&headers, &addr));
+(B[m[32m+            warn!(
+(B[m[32m+                "Rejected health check from unauthorized IP: {}",
+(B[m[32m+                extract_real_ip(&headers, &addr)
+(B[m[32m+            );
+(B[m             return Err(StatusCode::FORBIDDEN);
+         }
+     };
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:171:
+[31m-    
+(B[m[32m+
+(B[m     state.metrics.health_checks.fetch_add(1, Ordering::Relaxed);
+     info!("Health check from {}", real_ip);
+[31m-    
+(B[m[31m-    let public_key = state.signer.public_key().await
+(B[m[32m+
+(B[m[32m+    let public_key = state
+(B[m[32m+        .signer
+(B[m[32m+        .public_key()
+(B[m[32m+        .await
+(B[m         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+[31m-    
+(B[m[32m+
+(B[m     Ok(Json(HealthResponse {
+         status: "healthy".to_string(),
+         version: env!("CARGO_PKG_VERSION").to_string(),
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:192:
+     let real_ip = match validate_ip_access(&state.security, &headers, &addr) {
+         Ok(ip) => ip,
+         Err(_) => {
+[31m-            warn!("Rejected public key request from unauthorized IP: {}", extract_real_ip(&headers, &addr));
+(B[m[32m+            warn!(
+(B[m[32m+                "Rejected public key request from unauthorized IP: {}",
+(B[m[32m+                extract_real_ip(&headers, &addr)
+(B[m[32m+            );
+(B[m             return Err(StatusCode::FORBIDDEN);
+         }
+     };
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:199:
+[31m-    
+(B[m[32m+
+(B[m     info!("Public key requested from {}", real_ip);
+[31m-    let public_key = state.signer.public_key().await
+(B[m[32m+    let public_key = state
+(B[m[32m+        .signer
+(B[m[32m+        .public_key()
+(B[m[32m+        .await
+(B[m         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+[31m-    
+(B[m[32m+
+(B[m     Ok(Json(PublicKeyResponse { public_key }))
+ }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:216:
+ 
+     // Get real client IP
+     let real_ip = extract_real_ip(&headers, &addr);
+[31m-    
+(B[m[32m+
+(B[m     // Create audit entry
+     let mut audit_entry = if state.audit_logger.is_some() {
+[31m-        Some(AttestationAuditEntry::from_request(&request, &real_ip.to_string(), start_time))
+(B[m[32m+        Some(AttestationAuditEntry::from_request(
+(B[m[32m+            &request,
+(B[m[32m+            &real_ip.to_string(),
+(B[m[32m+            start_time,
+(B[m[32m+        ))
+(B[m     } else {
+         None
+     };
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:226:
+ 
+     // Security checks
+[31m-        // Check IP allowlist
+(B[m[32m+    // Check IP allowlist
+(B[m     if validate_ip_access(&state.security, &headers, &addr).is_err() {
+[31m-            if let Some(audit) = &mut audit_entry {
+(B[m[31m-                audit.set_error(format!("Unauthorized IP: {real_ip}"));
+(B[m[31m-                audit.update_duration(start_time);
+(B[m[31m-                if let Some(logger) = &state.audit_logger {
+(B[m[31m-                    let _ = logger.log(audit).await;
+(B[m[31m-                }
+(B[m[32m+        if let Some(audit) = &mut audit_entry {
+(B[m[32m+            audit.set_error(format!("Unauthorized IP: {real_ip}"));
+(B[m[32m+            audit.update_duration(start_time);
+(B[m[32m+            if let Some(logger) = &state.audit_logger {
+(B[m[32m+                let _ = logger.log(audit).await;
+(B[m             }
+[31m-            warn!("Rejected request from unauthorized IP: {}", real_ip);
+(B[m[31m-            return Err(StatusCode::FORBIDDEN);
+(B[m         }
+[32m+        warn!("Rejected request from unauthorized IP: {}", real_ip);
+(B[m[32m+        return Err(StatusCode::FORBIDDEN);
+(B[m[32m+    }
+(B[m 
+[31m-        // Check chain ID
+(B[m[32m+    // Check chain ID
+(B[m     if let Err(e) = state.security.validate_chain_id(request.chain_id) {
+[31m-            if let Some(audit) = &mut audit_entry {
+(B[m[31m-                audit.set_error(e.to_string());
+(B[m[31m-                audit.update_duration(start_time);
+(B[m[31m-                if let Some(logger) = &state.audit_logger {
+(B[m[31m-                    let _ = logger.log(audit).await;
+(B[m[31m-                }
+(B[m[32m+        if let Some(audit) = &mut audit_entry {
+(B[m[32m+            audit.set_error(e.to_string());
+(B[m[32m+            audit.update_duration(start_time);
+(B[m[32m+            if let Some(logger) = &state.audit_logger {
+(B[m[32m+                let _ = logger.log(audit).await;
+(B[m             }
+[31m-            warn!("Rejected request for unauthorized chain ID: 0x{:x}", request.chain_id);
+(B[m[31m-            return Err(StatusCode::BAD_REQUEST);
+(B[m[32m+        }
+(B[m[32m+        warn!(
+(B[m[32m+            "Rejected request for unauthorized chain ID: 0x{:x}",
+(B[m[32m+            request.chain_id
+(B[m[32m+        );
+(B[m[32m+        return Err(StatusCode::BAD_REQUEST);
+(B[m     }
+ 
+     info!(
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:280:
+     };
+ 
+     // Sign transaction
+[31m-    match state.signer.sign_transaction(&request.transaction, request.chain_id).await {
+(B[m[32m+    match state
+(B[m[32m+        .signer
+(B[m[32m+        .sign_transaction(&request.transaction, request.chain_id)
+(B[m[32m+        .await
+(B[m[32m+    {
+(B[m         Ok(signature) => {
+             if let Some(audit) = &mut audit_entry {
+                 audit.set_signature(&signature);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:323:
+     let real_ip = match validate_ip_access(&state.security, &headers, &addr) {
+         Ok(ip) => ip,
+         Err(_) => {
+[31m-            warn!("Rejected metrics request from unauthorized IP: {}", extract_real_ip(&headers, &addr));
+(B[m[32m+            warn!(
+(B[m[32m+                "Rejected metrics request from unauthorized IP: {}",
+(B[m[32m+                extract_real_ip(&headers, &addr)
+(B[m[32m+            );
+(B[m             return Err(StatusCode::FORBIDDEN);
+         }
+     };
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:330:
+[31m-    
+(B[m[32m+
+(B[m     info!("Metrics requested from {}", real_ip);
+     Ok(Json(MetricsResponse {
+         sign_requests: state.metrics.sign_requests.load(Ordering::Relaxed),
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:342:
+     next: axum::middleware::Next,
+ ) -> axum::response::Response {
+     let mut response = next.run(request).await;
+[31m-    
+(B[m[32m+
+(B[m     // Add security headers
+     let headers = response.headers_mut();
+     headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:349:
+     headers.insert("X-Frame-Options", "DENY".parse().unwrap());
+     headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
+[31m-    headers.insert("Strict-Transport-Security", "max-age=31536000; includeSubDomains".parse().unwrap());
+(B[m[31m-    headers.insert("Content-Security-Policy", "default-src 'none'".parse().unwrap());
+(B[m[32m+    headers.insert(
+(B[m[32m+        "Strict-Transport-Security",
+(B[m[32m+        "max-age=31536000; includeSubDomains".parse().unwrap(),
+(B[m[32m+    );
+(B[m[32m+    headers.insert(
+(B[m[32m+        "Content-Security-Policy",
+(B[m[32m+        "default-src 'none'".parse().unwrap(),
+(B[m[32m+    );
+(B[m     headers.insert("Referrer-Policy", "no-referrer".parse().unwrap());
+[31m-    
+(B[m[32m+
+(B[m     // Remove server information
+     headers.remove("server");
+[31m-    
+(B[m[32m+
+(B[m     response
+ }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:363:
+     use super::*;
+     use axum::http::StatusCode;
+     use axum_test::TestServer;
+[31m-    
+(B[m[32m+
+(B[m     async fn create_test_server() -> TestServer {
+         let config = Config {
+             server: crate::config::ServerConfig {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:389:
+         };
+ 
+         // Set test private key in environment
+[31m-        std::env::set_var("TEST_PRIVATE_KEY", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
+(B[m[32m+        std::env::set_var(
+(B[m[32m+            "TEST_PRIVATE_KEY",
+(B[m[32m+            "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+(B[m[32m+        );
+(B[m         let server = Server::new(config).await.expect("Failed to create server");
+         TestServer::new(server.create_router()).expect("Failed to create test server")
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:397:
+     #[tokio::test]
+     async fn test_health_check() {
+         let server = create_test_server().await;
+[31m-        
+(B[m[32m+
+(B[m         let response = server.get("/health").await;
+         assert_eq!(response.status_code(), StatusCode::OK);
+[31m-        
+(B[m[32m+
+(B[m         let health: HealthResponse = response.json();
+         assert_eq!(health.status, "healthy");
+         assert_eq!(health.version, env!("CARGO_PKG_VERSION"));
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:409:
+     #[tokio::test]
+     async fn test_public_key() {
+         let server = create_test_server().await;
+[31m-        
+(B[m[32m+
+(B[m         let response = server.get("/get_public_key").await;
+         assert_eq!(response.status_code(), StatusCode::OK);
+[31m-        
+(B[m[32m+
+(B[m         let key_response: PublicKeyResponse = response.json();
+         assert_ne!(key_response.public_key, Felt::ZERO);
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:420:
+     #[tokio::test]
+     async fn test_metrics() {
+         let server = create_test_server().await;
+[31m-        
+(B[m[32m+
+(B[m         // Call health to increment metrics
+         let _ = server.get("/health").await;
+[31m-        
+(B[m[32m+
+(B[m         let response = server.get("/metrics").await;
+         assert_eq!(response.status_code(), StatusCode::OK);
+[31m-        
+(B[m[32m+
+(B[m         let metrics: MetricsResponse = response.json();
+         assert_eq!(metrics.health_checks, 1);
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/server.rs:433:
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:1:
+ use starknet::core::types::BroadcastedInvokeTransactionV3;
+[31m-use starknet_crypto::{Felt, PoseidonHasher, poseidon_hash_many};
+(B[m[32m+use starknet_crypto::{poseidon_hash_many, Felt, PoseidonHasher};
+(B[m use tracing::{debug, info};
+ 
+ use crate::errors::SignerError;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:29:
+     }
+ 
+     /// Sign a transaction hash
+[31m-    pub async fn sign_transaction_hash(&self, transaction_hash: Felt) -> Result<Vec<Felt>, SignerError> {
+(B[m[32m+    pub async fn sign_transaction_hash(
+(B[m[32m+        &self,
+(B[m[32m+        transaction_hash: Felt,
+(B[m[32m+    ) -> Result<Vec<Felt>, SignerError> {
+(B[m         debug!("Signing transaction hash: 0x{:x}", transaction_hash);
+[31m-        
+(B[m[32m+
+(B[m         let signing_key = self.keystore.signing_key().await?;
+[31m-        let signature = signing_key.sign(&transaction_hash)
+(B[m[32m+        let signature = signing_key
+(B[m[32m+            .sign(&transaction_hash)
+(B[m             .map_err(|e| SignerError::Crypto(format!("Signing failed: {e}")))?;
+ 
+         Ok(vec![signature.r, signature.s])
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:41:
+ 
+     /// Sign a full transaction (computes hash and signs)
+     pub async fn sign_transaction(
+[31m-        &self, 
+(B[m[31m-        transaction: &BroadcastedInvokeTransactionV3, 
+(B[m[31m-        chain_id: Felt
+(B[m[32m+        &self,
+(B[m[32m+        transaction: &BroadcastedInvokeTransactionV3,
+(B[m[32m+        chain_id: Felt,
+(B[m     ) -> Result<Vec<Felt>, SignerError> {
+         let transaction_hash = compute_transaction_hash(transaction, chain_id)?;
+         debug!("Computed transaction hash: 0x{:x}", transaction_hash);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:50:
+[31m-        
+(B[m[32m+
+(B[m         self.sign_transaction_hash(transaction_hash).await
+     }
+ }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:71:
+ /// Compute the transaction hash for an invoke transaction v3
+ /// This is a copy of the transaction hash computation from starknet-rs
+ pub fn compute_transaction_hash(
+[31m-    tx: &BroadcastedInvokeTransactionV3, 
+(B[m[31m-    chain_id: Felt
+(B[m[32m+    tx: &BroadcastedInvokeTransactionV3,
+(B[m[32m+    chain_id: Felt,
+(B[m ) -> Result<Felt, SignerError> {
+     let mut hasher = PoseidonHasher::new();
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:148:
+     use super::*;
+     use starknet::core::{
+         chain_id,
+[31m-        types::{
+(B[m[31m-            DataAvailabilityMode, ResourceBounds, ResourceBoundsMapping,
+(B[m[31m-        },
+(B[m[32m+        types::{DataAvailabilityMode, ResourceBounds, ResourceBoundsMapping},
+(B[m     };
+     use starknet::macros::felt;
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:190:
+             fee_data_availability_mode: DataAvailabilityMode::L1,
+             is_query: false,
+         };
+[31m-        
+(B[m[32m+
+(B[m         let chain_id = chain_id::SEPOLIA;
+         let tx_hash = compute_transaction_hash(&tx, chain_id).unwrap();
+[31m-        
+(B[m[32m+
+(B[m         // This should match the expected hash from the original example
+         assert_eq!(
+             tx_hash,
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:203:
+ 
+     #[tokio::test]
+     async fn test_signer_creation_and_signing() {
+[31m-        use crate::keystore::{Keystore, backends::BackendConfig};
+(B[m[31m-        
+(B[m[32m+        use crate::keystore::{backends::BackendConfig, Keystore};
+(B[m[32m+
+(B[m         let private_key = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+         std::env::set_var("TEST_SIGNER_KEY", private_key);
+[31m-        
+(B[m[32m+
+(B[m         let mut keystore = Keystore::new(BackendConfig::Environment {
+             var_name: "TEST_SIGNER_KEY".to_string(),
+[31m-        }).unwrap();
+(B[m[32m+        })
+(B[m[32m+        .unwrap();
+(B[m         keystore.init(None).await.unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let signer = StarknetSigner::new(keystore).await.unwrap();
+[31m-        
+(B[m[32m+
+(B[m         // Test public key retrieval
+         let public_key = signer.public_key().await.unwrap();
+         assert_ne!(public_key, Felt::ZERO);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:221:
+[31m-        
+(B[m[32m+
+(B[m         // Test signing a simple hash
+         let test_hash = felt!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
+         let signature = signer.sign_transaction_hash(test_hash).await.unwrap();
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:225:
+[31m-        
+(B[m[32m+
+(B[m         // Signature should have two non-zero components
+         assert_ne!(signature[0], Felt::ZERO);
+         assert_ne!(signature[1], Felt::ZERO);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:230:
+ 
+     #[tokio::test]
+     async fn test_signer_with_file_backend() {
+[31m-        use crate::keystore::{Keystore, backends::BackendConfig, FileBackend};
+(B[m[32m+        use crate::keystore::{backends::BackendConfig, FileBackend, Keystore};
+(B[m         use tempfile::TempDir;
+[31m-        
+(B[m[32m+
+(B[m         let temp_dir = TempDir::new().unwrap();
+         let keystore_path = temp_dir.path().to_str().unwrap();
+         let private_key = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:248:
+         let mut keystore = Keystore::new(BackendConfig::File {
+             keystore_dir: keystore_path.to_string(),
+             key_name: Some(key_name.to_string()),
+[31m-        }).unwrap();
+(B[m[32m+        })
+(B[m[32m+        .unwrap();
+(B[m         keystore.init(Some(password)).await.unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let signer = StarknetSigner::new(keystore).await.unwrap();
+[31m-        
+(B[m[32m+
+(B[m         // Test public key retrieval
+         let public_key = signer.public_key().await.unwrap();
+         assert_ne!(public_key, Felt::ZERO);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:259:
+[31m-        
+(B[m[32m+
+(B[m         // Test signing a simple hash
+         let test_hash = felt!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
+         let signature = signer.sign_transaction_hash(test_hash).await.unwrap();
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:263:
+[31m-        
+(B[m[32m+
+(B[m         // Signature should have two non-zero components
+         assert_ne!(signature[0], Felt::ZERO);
+         assert_ne!(signature[1], Felt::ZERO);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/signer.rs:267:
+     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:4:
+ use crate::security::SecurityValidator;
+ 
+ /// Extract real client IP from headers or connection info
+[31m-/// 
+(B[m[32m+///
+(B[m /// This function checks various headers commonly used by reverse proxies
+ /// to determine the real client IP address:
+[31m-/// 
+(B[m[32m+///
+(B[m /// 1. X-Forwarded-For (standard reverse proxy header)
+ /// 2. X-Real-IP (nginx style header)
+ /// 3. CF-Connecting-IP (CloudFlare header)
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:14:
+ /// 4. Direct connection IP (fallback)
+[31m-/// 
+(B[m[32m+///
+(B[m /// # Arguments
+ /// * `headers` - HTTP headers from the request
+ /// * `connect_info` - Direct TCP connection information
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:19:
+[31m-/// 
+(B[m[32m+///
+(B[m /// # Returns
+ /// The real client IP address
+ pub fn extract_real_ip(headers: &HeaderMap, connect_info: &SocketAddr) -> IpAddr {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:32:
+             }
+         }
+     }
+[31m-    
+(B[m[32m+
+(B[m     // Check X-Real-IP header (nginx style)
+     if let Some(real_ip) = headers.get("x-real-ip") {
+         if let Ok(real_ip_str) = real_ip.to_str() {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:41:
+             }
+         }
+     }
+[31m-    
+(B[m[32m+
+(B[m     // Check CF-Connecting-IP header (CloudFlare)
+     if let Some(cf_ip) = headers.get("cf-connecting-ip") {
+         if let Ok(cf_ip_str) = cf_ip.to_str() {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:50:
+             }
+         }
+     }
+[31m-    
+(B[m[32m+
+(B[m     // Fallback to direct connection IP
+     connect_info.ip()
+ }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:57:
+ 
+ /// Validate IP address access with real IP extraction
+[31m-/// 
+(B[m[32m+///
+(B[m /// This function extracts the real client IP and validates it against
+ /// the security policy.
+[31m-/// 
+(B[m[32m+///
+(B[m /// # Arguments
+ /// * `security` - Security validator containing IP allowlists
+ /// * `headers` - HTTP headers from the request
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:66:
+ /// * `connect_info` - Direct TCP connection information
+[31m-/// 
+(B[m[32m+///
+(B[m /// # Returns
+ /// * `Ok(IpAddr)` - The validated real client IP
+ /// * `Err(StatusCode)` - HTTP 403 Forbidden if IP is not allowed
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:71:
+ pub fn validate_ip_access(
+[31m-    security: &SecurityValidator, 
+(B[m[31m-    headers: &HeaderMap, 
+(B[m[31m-    connect_info: &SocketAddr
+(B[m[32m+    security: &SecurityValidator,
+(B[m[32m+    headers: &HeaderMap,
+(B[m[32m+    connect_info: &SocketAddr,
+(B[m ) -> Result<IpAddr, StatusCode> {
+     let real_ip = extract_real_ip(headers, connect_info);
+[31m-    
+(B[m[31m-        if security.validate_ip(&real_ip).is_err() {
+(B[m[31m-            return Err(StatusCode::FORBIDDEN);
+(B[m[31m-        }
+(B[m[31m-    
+(B[m[32m+
+(B[m[32m+    if security.validate_ip(&real_ip).is_err() {
+(B[m[32m+        return Err(StatusCode::FORBIDDEN);
+(B[m[32m+    }
+(B[m[32m+
+(B[m     Ok(real_ip)
+ }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:92:
+     fn test_extract_real_ip_direct_connection() {
+         let headers = HeaderMap::new();
+         let connect_info: SocketAddr = "192.168.1.1:8080".parse().unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let ip = extract_real_ip(&headers, &connect_info);
+         assert_eq!(ip.to_string(), "192.168.1.1");
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:100:
+     #[test]
+     fn test_extract_real_ip_x_forwarded_for() {
+         let mut headers = HeaderMap::new();
+[31m-        headers.insert("x-forwarded-for", "203.0.113.195, 70.41.3.18, 150.172.238.178".parse().unwrap());
+(B[m[32m+        headers.insert(
+(B[m[32m+            "x-forwarded-for",
+(B[m[32m+            "203.0.113.195, 70.41.3.18, 150.172.238.178"
+(B[m[32m+                .parse()
+(B[m[32m+                .unwrap(),
+(B[m[32m+        );
+(B[m         let connect_info: SocketAddr = "192.168.1.1:8080".parse().unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let ip = extract_real_ip(&headers, &connect_info);
+         assert_eq!(ip.to_string(), "203.0.113.195");
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:112:
+         let mut headers = HeaderMap::new();
+         headers.insert("x-real-ip", "203.0.113.195".parse().unwrap());
+         let connect_info: SocketAddr = "192.168.1.1:8080".parse().unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let ip = extract_real_ip(&headers, &connect_info);
+         assert_eq!(ip.to_string(), "203.0.113.195");
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:122:
+         let mut headers = HeaderMap::new();
+         headers.insert("cf-connecting-ip", "203.0.113.195".parse().unwrap());
+         let connect_info: SocketAddr = "192.168.1.1:8080".parse().unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let ip = extract_real_ip(&headers, &connect_info);
+         assert_eq!(ip.to_string(), "203.0.113.195");
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:135:
+         headers.insert("x-real-ip", "198.51.100.178".parse().unwrap());
+         headers.insert("cf-connecting-ip", "198.51.100.179".parse().unwrap());
+         let connect_info: SocketAddr = "192.168.1.1:8080".parse().unwrap();
+[31m-        
+(B[m[32m+
+(B[m         let ip = extract_real_ip(&headers, &connect_info);
+         assert_eq!(ip.to_string(), "203.0.113.195");
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/ip.rs:142:
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/mod.rs:1:
+ pub mod ip;
+[31m-pub mod tls;
+(B[m pub mod password;
+[32m+pub mod tls;
+(B[m 
+[31m-pub use ip::{extract_real_ip, validate_ip_access}; 
+(B[m[32m+pub use ip::{extract_real_ip, validate_ip_access};
+(B[m[32m+pub use password::{
+(B[m[32m+    get_passphrase_securely, prompt_for_passphrase, prompt_for_passphrase_with_confirmation,
+(B[m[32m+};
+(B[m pub use tls::TlsManager;
+[31m-pub use password::{prompt_for_passphrase, get_passphrase_securely, prompt_for_passphrase_with_confirmation}; 
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/password.rs:7:
+     // Security warning about environment variables
+     warn!("🔐 Prompting for passphrase securely...");
+     warn!("💡 Tip: For automation, consider using encrypted keystores with OS keyring backend");
+[31m-    
+(B[m[32m+
+(B[m     let passphrase = prompt_password(prompt_message)?;
+[31m-    
+(B[m[32m+
+(B[m     if passphrase.is_empty() {
+         return Err(anyhow::anyhow!("Passphrase cannot be empty"));
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/password.rs:16:
+[31m-    
+(B[m[32m+
+(B[m     if passphrase.len() < 8 {
+         warn!("⚠️  Short passphrase detected. Consider using a longer, more secure passphrase.");
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/password.rs:20:
+[31m-    
+(B[m[32m+
+(B[m     info!("✅ Passphrase received securely");
+     Ok(passphrase)
+ }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/password.rs:31:
+         Some(passphrase) => {
+             warn!("⚠️  SECURITY WARNING: Passphrase provided via CLI argument or environment variable");
+             warn!("⚠️  This method is less secure as the passphrase may be visible in process lists or logs");
+[31m-            warn!("⚠️  Consider removing the --passphrase argument to use secure prompting instead");
+(B[m[31m-            
+(B[m[32m+            warn!(
+(B[m[32m+                "⚠️  Consider removing the --passphrase argument to use secure prompting instead"
+(B[m[32m+            );
+(B[m[32m+
+(B[m             if passphrase.is_empty() {
+                 return Err(anyhow::anyhow!("Provided passphrase cannot be empty"));
+             }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/password.rs:39:
+[31m-            
+(B[m[32m+
+(B[m             Ok(passphrase)
+         }
+[31m-        None => {
+(B[m[31m-            prompt_for_passphrase(prompt_message)
+(B[m[31m-        }
+(B[m[32m+        None => prompt_for_passphrase(prompt_message),
+(B[m     }
+ }
+ 
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/password.rs:48:
+ /// Prompt for passphrase confirmation (for key creation)
+ pub fn prompt_for_passphrase_with_confirmation(prompt_message: &str) -> Result<String> {
+     warn!("🔐 Creating new encrypted key - passphrase confirmation required");
+[31m-    
+(B[m[32m+
+(B[m     let passphrase = prompt_for_passphrase(prompt_message)?;
+     let confirmation = prompt_password("Confirm passphrase: ")?;
+[31m-    
+(B[m[32m+
+(B[m     if passphrase != confirmation {
+         return Err(anyhow::anyhow!("Passphrases do not match"));
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/password.rs:58:
+[31m-    
+(B[m[32m+
+(B[m     info!("✅ Passphrase confirmed");
+     Ok(passphrase)
+ }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/password.rs:66:
+ 
+     #[test]
+     fn test_get_passphrase_with_cli_arg() {
+[31m-        let result = get_passphrase_securely(
+(B[m[31m-            Some("test_password_123".to_string()),
+(B[m[31m-            "Enter passphrase: "
+(B[m[31m-        );
+(B[m[32m+        let result =
+(B[m[32m+            get_passphrase_securely(Some("test_password_123".to_string()), "Enter passphrase: ");
+(B[m         assert!(result.is_ok());
+         assert_eq!(result.unwrap(), "test_password_123");
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/password.rs:76:
+ 
+     #[test]
+     fn test_empty_cli_passphrase_fails() {
+[31m-        let result = get_passphrase_securely(
+(B[m[31m-            Some("".to_string()),
+(B[m[31m-            "Enter passphrase: "
+(B[m[31m-        );
+(B[m[32m+        let result = get_passphrase_securely(Some("".to_string()), "Enter passphrase: ");
+(B[m         assert!(result.is_err());
+     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/tls.rs:1:
+[31m-use std::net::SocketAddr;
+(B[m use axum::Router;
+[32m+use std::net::SocketAddr;
+(B[m use tracing::info;
+ 
+ use crate::config::TlsConfig;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/tls.rs:22:
+     }
+ 
+     /// Load TLS configuration from certificate and key files
+[31m-    pub async fn load_tls_config(&self) -> Result<axum_server::tls_rustls::RustlsConfig, SignerError> {
+(B[m[32m+    pub async fn load_tls_config(
+(B[m[32m+        &self,
+(B[m[32m+    ) -> Result<axum_server::tls_rustls::RustlsConfig, SignerError> {
+(B[m         if !self.config.enabled {
+             return Err(SignerError::Config("TLS is not enabled".to_string()));
+         }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/tls.rs:29:
+ 
+[31m-        let cert_file = self.config.cert_file.as_ref()
+(B[m[31m-            .ok_or_else(|| SignerError::Config("TLS certificate file not specified".to_string()))?;
+(B[m[31m-        let key_file = self.config.key_file.as_ref()
+(B[m[32m+        let cert_file =
+(B[m[32m+            self.config.cert_file.as_ref().ok_or_else(|| {
+(B[m[32m+                SignerError::Config("TLS certificate file not specified".to_string())
+(B[m[32m+            })?;
+(B[m[32m+        let key_file = self
+(B[m[32m+            .config
+(B[m[32m+            .key_file
+(B[m[32m+            .as_ref()
+(B[m             .ok_or_else(|| SignerError::Config("TLS key file not specified".to_string()))?;
+ 
+         // Validate that files exist
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/tls.rs:36:
+         if !std::path::Path::new(cert_file).exists() {
+[31m-            return Err(SignerError::Config(format!("TLS certificate file not found: {cert_file}")));
+(B[m[32m+            return Err(SignerError::Config(format!(
+(B[m[32m+                "TLS certificate file not found: {cert_file}"
+(B[m[32m+            )));
+(B[m         }
+         if !std::path::Path::new(key_file).exists() {
+[31m-            return Err(SignerError::Config(format!("TLS key file not found: {key_file}")));
+(B[m[32m+            return Err(SignerError::Config(format!(
+(B[m[32m+                "TLS key file not found: {key_file}"
+(B[m[32m+            )));
+(B[m         }
+ 
+[31m-        info!("Loading TLS configuration from {} and {}", cert_file, key_file);
+(B[m[32m+        info!(
+(B[m[32m+            "Loading TLS configuration from {} and {}",
+(B[m[32m+            cert_file, key_file
+(B[m[32m+        );
+(B[m 
+         // Create TLS config using axum-server
+         let tls_config = axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_file, key_file)
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/tls.rs:51:
+     }
+ 
+     /// Start TLS server with the given router and address
+[31m-    pub async fn serve_tls(
+(B[m[31m-        &self,
+(B[m[31m-        app: Router,
+(B[m[31m-        addr: SocketAddr,
+(B[m[31m-    ) -> Result<(), SignerError> {
+(B[m[32m+    pub async fn serve_tls(&self, app: Router, addr: SocketAddr) -> Result<(), SignerError> {
+(B[m         let tls_config = self.load_tls_config().await?;
+ 
+         info!("🔒 TLS enabled");
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/tls.rs:71:
+     }
+ 
+     /// Start non-TLS server with the given router and address
+[31m-    pub async fn serve_http(
+(B[m[31m-        app: Router,
+(B[m[31m-        addr: SocketAddr,
+(B[m[31m-    ) -> Result<(), SignerError> {
+(B[m[31m-        let listener = tokio::net::TcpListener::bind(addr).await
+(B[m[32m+    pub async fn serve_http(app: Router, addr: SocketAddr) -> Result<(), SignerError> {
+(B[m[32m+        let listener = tokio::net::TcpListener::bind(addr)
+(B[m[32m+            .await
+(B[m             .map_err(|e| SignerError::Internal(format!("Failed to bind to {addr}: {e}")))?;
+ 
+[31m-        info!("✅ Server ready - accepting connections (HTTP only) on {}", addr);
+(B[m[32m+        info!(
+(B[m[32m+            "✅ Server ready - accepting connections (HTTP only) on {}",
+(B[m[32m+            addr
+(B[m[32m+        );
+(B[m 
+[31m-        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+(B[m[31m-            .await
+(B[m[31m-            .map_err(|e| SignerError::Internal(format!("Server error: {e}")))?;
+(B[m[32m+        axum::serve(
+(B[m[32m+            listener,
+(B[m[32m+            app.into_make_service_with_connect_info::<SocketAddr>(),
+(B[m[32m+        )
+(B[m[32m+        .await
+(B[m[32m+        .map_err(|e| SignerError::Internal(format!("Server error: {e}")))?;
+(B[m 
+         Ok(())
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/tls.rs:104:
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+[31m-    
+(B[m[32m+
+(B[m     #[test]
+     fn test_tls_manager_disabled() {
+         let config = TlsConfig {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/tls.rs:140:
+             key_file: None,
+         };
+         let tls_manager = TlsManager::new(config);
+[31m-        
+(B[m[32m+
+(B[m         let result = tls_manager.load_tls_config().await;
+         assert!(result.is_err());
+[31m-        assert!(result.unwrap_err().to_string().contains("TLS is not enabled"));
+(B[m[32m+        assert!(result
+(B[m[32m+            .unwrap_err()
+(B[m[32m+            .to_string()
+(B[m[32m+            .contains("TLS is not enabled"));
+(B[m     }
+ 
+     #[tokio::test]
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/tls.rs:154:
+             key_file: Some("/nonexistent/key.pem".to_string()),
+         };
+         let tls_manager = TlsManager::new(config);
+[31m-        
+(B[m[32m+
+(B[m         let result = tls_manager.load_tls_config().await;
+         assert!(result.is_err());
+         assert!(result.unwrap_err().to_string().contains("not found"));
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/utils/tls.rs:161:
+     }
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[mDiff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:2:
+ use clap::Parser;
+ use tracing::{info, warn};
+ 
+[31m-use starknet_remote_signer::{Config, Server, StartArgs, AddKeyArgs, DeleteKeyArgs, ListKeysArgs, key_management};
+(B[m[32m+use starknet_remote_signer::{
+(B[m[32m+    key_management, AddKeyArgs, Config, DeleteKeyArgs, ListKeysArgs, Server, StartArgs,
+(B[m[32m+};
+(B[m 
+ #[derive(Parser)]
+ #[command(name = "starknet-remote-signer")]
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:76:
+                 KeysCommands::Delete(args) => key_management::delete_key(args).await,
+                 KeysCommands::List(args) => key_management::list_keys(args).await,
+             }
+[31m-        },
+(B[m[32m+        }
+(B[m         None => start_server(cli.start_args).await, // Default to start for backward compatibility
+     }
+ }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:89:
+         .finish();
+     tracing::subscriber::set_global_default(subscriber)?;
+ 
+[31m-    info!("Starting Starknet Remote Signer v{}", env!("CARGO_PKG_VERSION"));
+(B[m[32m+    info!(
+(B[m[32m+        "Starting Starknet Remote Signer v{}",
+(B[m[32m+        env!("CARGO_PKG_VERSION")
+(B[m[32m+    );
+(B[m 
+     // Load configuration
+     let mut config = Config::load(args)?;
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:96:
+[31m-    
+(B[m[32m+
+(B[m     // Validate configuration
+     config.validate()?;
+[31m-    
+(B[m[32m+
+(B[m     // Get passphrase securely if needed for keystore
+     if let Some(passphrase) = config.get_keystore_passphrase()? {
+         config.passphrase = Some(passphrase);
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:106:
+     info!("📊 Configuration loaded:");
+     info!("  Server: {}:{}", config.server.address, config.server.port);
+     info!("  Keystore backend: {}", config.keystore.backend);
+[31m-    
+(B[m[32m+
+(B[m     // Log security configuration
+     if !config.security.allowed_chain_ids.is_empty() {
+[31m-        info!("🔒 Allowed chains: [{}]", config.security.allowed_chain_ids.join(", "));
+(B[m[32m+        info!(
+(B[m[32m+            "🔒 Allowed chains: [{}]",
+(B[m[32m+            config.security.allowed_chain_ids.join(", ")
+(B[m[32m+        );
+(B[m     } else {
+         warn!("⚠️  No chain restrictions configured - all chains allowed!");
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:116:
+[31m-    
+(B[m[32m+
+(B[m     if !config.security.allowed_ips.is_empty() {
+[31m-        info!("🔒 Allowed IPs: [{}]", config.security.allowed_ips.join(", "));
+(B[m[32m+        info!(
+(B[m[32m+            "🔒 Allowed IPs: [{}]",
+(B[m[32m+            config.security.allowed_ips.join(", ")
+(B[m[32m+        );
+(B[m     } else {
+         warn!("⚠️  No IP restrictions configured - all IPs allowed!");
+     }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:122:
+[31m-    
+(B[m[32m+
+(B[m     if config.audit.enabled {
+         info!("📝 Audit logging enabled: {}", config.audit.log_path);
+     } else {
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:138:
+     Ok(())
+ }
+ 
+[31m-
+(B[m[31m-
+(B[m async fn init_keystore(args: InitArgs) -> Result<()> {
+[31m-    use starknet_remote_signer::{Keystore, utils::prompt_for_passphrase_with_confirmation};
+(B[m[31m-    
+(B[m[32m+    use starknet_remote_signer::{utils::prompt_for_passphrase_with_confirmation, Keystore};
+(B[m[32m+
+(B[m     // Initialize logging
+     let subscriber = tracing_subscriber::fmt()
+         .with_env_filter("info")
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:156:
+     let passphrase = match args.passphrase {
+         Some(provided_passphrase) => {
+             warn!("⚠️  SECURITY WARNING: Passphrase provided via CLI argument");
+[31m-            warn!("⚠️  This method is less secure as the passphrase may be visible in process lists");
+(B[m[32m+            warn!(
+(B[m[32m+                "⚠️  This method is less secure as the passphrase may be visible in process lists"
+(B[m[32m+            );
+(B[m             warn!("⚠️  Consider omitting --passphrase to use secure prompting instead");
+             provided_passphrase
+         }
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:163:
+[31m-        None => {
+(B[m[31m-            prompt_for_passphrase_with_confirmation("Enter passphrase for new keystore: ")?
+(B[m[31m-        }
+(B[m[32m+        None => prompt_for_passphrase_with_confirmation("Enter passphrase for new keystore: ")?,
+(B[m     };
+ 
+     // Create encrypted keystore
+Diff in /Users/errorist/Documents/new-projects/starknet-remote-signer/starknet-remote-signer/src/main.rs:173:
+     warn!("⚠️  Keep your passphrase secure - it cannot be recovered!");
+ 
+     Ok(())
+[31m-} 
+(B[m[32m+}
+(B[m[32m+
+(B[m

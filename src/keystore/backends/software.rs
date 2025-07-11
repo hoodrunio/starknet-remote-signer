@@ -5,8 +5,8 @@ use tracing::{info, warn};
 
 use crate::errors::SignerError;
 use crate::keystore::backends::KeystoreBackend;
+use crate::keystore::encryption::{decrypt_key, encrypt_key};
 use crate::keystore::key_material::KeyMaterial;
-use crate::keystore::encryption::{encrypt_key, decrypt_key};
 
 /// Software-based keystore backend using encrypted files
 #[derive(Debug)]
@@ -44,8 +44,9 @@ impl SoftwareBackend {
                 .map_err(|e| SignerError::Config(format!("Failed to get keystore metadata: {e}")))?
                 .permissions();
             perms.set_mode(0o600); // rw-------
-            fs::set_permissions(keystore_path, perms)
-                .map_err(|e| SignerError::Config(format!("Failed to set keystore permissions: {e}")))?;
+            fs::set_permissions(keystore_path, perms).map_err(|e| {
+                SignerError::Config(format!("Failed to set keystore permissions: {e}"))
+            })?;
         }
 
         info!("Created encrypted keystore at: {}", keystore_path);
@@ -73,7 +74,7 @@ impl KeystoreBackend for SoftwareBackend {
         })?;
 
         let path = Path::new(&self.keystore_path);
-        
+
         if !path.exists() {
             return Err(SignerError::Config(format!(
                 "Keystore file {} does not exist. Use 'init' command to create it.",
@@ -110,7 +111,7 @@ impl KeystoreBackend for SoftwareBackend {
 
     fn validate_config(&self) -> Result<(), SignerError> {
         let path = Path::new(&self.keystore_path);
-        
+
         if !path.exists() {
             warn!("Keystore file does not exist: {}", self.keystore_path);
             return Ok(()); // Not an error during validation, will fail at init
@@ -122,4 +123,4 @@ impl KeystoreBackend for SoftwareBackend {
 
         Ok(())
     }
-} 
+}

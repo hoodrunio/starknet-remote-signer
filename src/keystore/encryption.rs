@@ -8,14 +8,18 @@ use crate::errors::SignerError;
 pub type EncryptedKeystore = String;
 
 /// Encrypt private key using JOSE JWE with PBES2-HS256+A128KW and A256GCM
-pub fn encrypt_key(private_key: &[u8; 32], passphrase: &str) -> Result<EncryptedKeystore, SignerError> {
+pub fn encrypt_key(
+    private_key: &[u8; 32],
+    passphrase: &str,
+) -> Result<EncryptedKeystore, SignerError> {
     // Create JWE header with PBES2-HS256+A128KW key management and A256GCM content encryption
     let mut header = JweHeader::new();
     header.set_algorithm("PBES2-HS256+A128KW");
     header.set_content_encryption("A256GCM");
-    
+
     // Create encrypter from password
-    let encrypter = PBES2_HS256_A128KW.encrypter_from_bytes(passphrase.as_bytes())
+    let encrypter = PBES2_HS256_A128KW
+        .encrypter_from_bytes(passphrase.as_bytes())
         .map_err(|e| SignerError::Crypto(format!("Failed to create encrypter: {e}")))?;
 
     // Encrypt the private key data
@@ -28,7 +32,8 @@ pub fn encrypt_key(private_key: &[u8; 32], passphrase: &str) -> Result<Encrypted
 /// Decrypt private key from JOSE JWE token
 pub fn decrypt_key(jwe_token: &str, passphrase: &str) -> Result<[u8; 32], SignerError> {
     // Create decrypter from password
-    let decrypter = PBES2_HS256_A128KW.decrypter_from_bytes(passphrase.as_bytes())
+    let decrypter = PBES2_HS256_A128KW
+        .decrypter_from_bytes(passphrase.as_bytes())
         .map_err(|e| SignerError::Crypto(format!("Failed to create decrypter: {e}")))?;
 
     // Decrypt the JWE token
@@ -47,4 +52,4 @@ pub fn decrypt_key(jwe_token: &str, passphrase: &str) -> Result<[u8; 32], Signer
     let mut key = [0u8; 32];
     key.copy_from_slice(&decrypted_data);
     Ok(key)
-} 
+}

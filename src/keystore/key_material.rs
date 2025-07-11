@@ -27,18 +27,20 @@ impl KeyMaterial {
                 Ok(bytes) if bytes.len() == 32 => {
                     let mut key_bytes = [0u8; 32];
                     key_bytes.copy_from_slice(&bytes);
-                    return Ok(Self { private_key: key_bytes });
+                    return Ok(Self {
+                        private_key: key_bytes,
+                    });
                 }
                 _ => {}
             }
         }
-        
+
         // Fallback to Felt parsing for other formats
         let key_felt = Felt::from_hex(hex_key)
             .map_err(|e| SignerError::InvalidKey(format!("Invalid private key hex: {e}")))?;
-        
+
         let key_bytes = key_felt.to_bytes_be();
-        
+
         Ok(Self {
             private_key: key_bytes,
         })
@@ -46,9 +48,7 @@ impl KeyMaterial {
 
     /// Create key material from bytes
     pub fn from_bytes(bytes: [u8; 32]) -> Self {
-        Self {
-            private_key: bytes,
-        }
+        Self { private_key: bytes }
     }
 
     /// Get the signing key
@@ -72,4 +72,4 @@ impl KeyMaterial {
     pub fn raw_bytes(&self) -> &[u8; 32] {
         &self.private_key
     }
-} 
+}
