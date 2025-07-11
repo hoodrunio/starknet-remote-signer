@@ -28,11 +28,22 @@ A secure remote signing service for Starknet validators, designed with security-
 
 ## Quick Start
 
-### 1. Create Encrypted Keystore (Recommended)
+### 1. Add a Key to Keystore
 
+#### Option A: OS Keyring (Recommended for Validators)
 ```bash
-# Create encrypted keystore (replace with your actual private key)
-starknet-remote-signer init --output validator.keystore --private-key YOUR_PRIVATE_KEY --passphrase YOUR_STRONG_PASSPHRASE
+# Add a key to OS keyring (like Cosmos SDK)
+starknet-remote-signer keys add validator --private-key YOUR_PRIVATE_KEY
+```
+
+#### Option B: Encrypted Software Keystore
+```bash
+# Create encrypted keystore file
+starknet-remote-signer keys add validator \
+  --backend software \
+  --keystore-path validator.keystore \
+  --private-key YOUR_PRIVATE_KEY \
+  --passphrase YOUR_STRONG_PASSPHRASE
 ```
 
 ### 2. Configure Security (Required for Production)
@@ -50,8 +61,8 @@ cert_file = "/path/to/cert.pem"
 key_file = "/path/to/key.pem"
 
 [keystore]
-backend = "software"
-path = "validator.keystore"
+backend = "os_keyring"
+key_name = "validator"  # Key you added in step 1
 
 [security]
 allowed_chain_ids = ["SN_MAIN"]  # Only allow mainnet
@@ -65,7 +76,47 @@ log_path = "/var/log/starknet-signer/audit.log"
 ### 3. Start the Signer
 
 ```bash
-starknet-remote-signer start --config config.toml --passphrase YOUR_STRONG_PASSPHRASE
+# Using config file
+starknet-remote-signer start --config config.toml
+
+# Or using CLI arguments
+starknet-remote-signer start \
+  --keystore-backend os_keyring \
+  --key-name validator \
+  --port 3000
+```
+
+## Key Management Commands
+
+### Add Keys
+```bash
+# Add to OS keyring (like Cosmos SDK)
+starknet-remote-signer keys add validator --private-key PRIVATE_KEY
+
+# Add to encrypted file
+starknet-remote-signer keys add validator \
+  --backend software \
+  --keystore-path validator.keystore \
+  --private-key PRIVATE_KEY \
+  --passphrase STRONG_PASSPHRASE
+```
+
+### List Keys
+```bash
+# List OS keyring keys
+starknet-remote-signer keys list
+
+# List software keystore
+starknet-remote-signer keys list --backend software --keystore-path validator.keystore
+```
+
+### Delete Keys
+```bash
+# Delete from OS keyring
+starknet-remote-signer keys delete validator --confirm
+
+# Delete software keystore file
+starknet-remote-signer keys delete validator --backend software --keystore-path validator.keystore --confirm
 ```
 
 ## Configuration Options
@@ -116,11 +167,17 @@ key_name = "validator"  # key name
 
 **Usage Examples:**
 ```bash
-# Store a key
-starknet-remote-signer start --keystore-backend os_keyring --keyring-key-name validator
+# Add a key (like Cosmos SDK)
+starknet-remote-signer keys add validator --private-key PRIVATE_KEY
+
+# Start server with that key
+starknet-remote-signer start --keystore-backend os_keyring --key-name validator
 
 # Delete a key
-starknet-remote-signer delete-key --backend os_keyring --key-name validator --confirm
+starknet-remote-signer keys delete validator --confirm
+
+# List keys
+starknet-remote-signer keys list
 ```
 
 ### Security Configuration

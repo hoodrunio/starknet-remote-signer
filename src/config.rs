@@ -94,7 +94,7 @@ impl Config {
                 path: cli.keystore_path,
                 env_var: Some(cli.env_var.unwrap_or_else(|| "SIGNER_PRIVATE_KEY".to_string())),
                 device: None,
-                key_name: cli.keyring_key_name,
+                key_name: cli.key_name,
             },
             passphrase: cli.passphrase,
             security: SecurityConfig::default(),

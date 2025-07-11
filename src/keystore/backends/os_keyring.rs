@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use tracing::{info};
+use tracing::{info, warn};
 
 use crate::errors::SignerError;
 use crate::keystore::backends::KeystoreBackend;
@@ -32,13 +32,31 @@ impl OsKeyringBackend {
         {
             use keyring::Entry;
             
+            info!("Creating keyring entry for service: '{}', account: '{}'", Self::service_name(), self.key_name);
             let entry = Entry::new(Self::service_name(), &self.key_name)
                 .map_err(|e| SignerError::Config(format!("Failed to create keyring entry: {}", e)))?;
             
+            info!("Storing key in keyring...");
             entry.set_password(private_key_hex)
                 .map_err(|e| SignerError::Config(format!("Failed to store key in keyring: {}", e)))?;
             
-            info!("Stored private key '{}' in OS keyring", self.key_name);
+            info!("✅ Stored private key '{}' in OS keyring", self.key_name);
+            
+            // Verify the key was stored by trying to retrieve it
+            info!("Verifying key storage...");
+            match entry.get_password() {
+                Ok(retrieved) => {
+                    if retrieved == private_key_hex {
+                        info!("✅ Key verification successful");
+                    } else {
+                        warn!("⚠️  Key verification failed: retrieved key doesn't match stored key");
+                    }
+                }
+                Err(e) => {
+                    warn!("⚠️  Key verification failed: {}", e);
+                }
+            }
+            
             Ok(())
         }
         
@@ -113,13 +131,27 @@ impl OsKeyringBackend {
         {
             use keyring::Entry;
             
+            info!("Creating keyring entry for deletion - service: '{}', account: '{}'", Self::service_name(), self.key_name);
             let entry = Entry::new(Self::service_name(), &self.key_name)
                 .map_err(|e| SignerError::Config(format!("Failed to create keyring entry: {}", e)))?;
             
+            // First check if the key exists
+            info!("Checking if key exists before deletion...");
+            match entry.get_password() {
+                Ok(_) => {
+                    info!("✅ Key found, proceeding with deletion");
+                }
+                Err(e) => {
+                    warn!("⚠️  Key not found in keyring: {}", e);
+                    return Err(SignerError::Config(format!("Key '{}' not found in keyring: {}", self.key_name, e)));
+                }
+            }
+            
+            info!("Deleting key from keyring...");
             entry.delete_credential()
                 .map_err(|e| SignerError::Config(format!("Failed to delete key from keyring: {}", e)))?;
             
-            info!("Deleted private key '{}' from OS keyring", self.key_name);
+            info!("✅ Deleted private key '{}' from OS keyring", self.key_name);
             Ok(())
         }
         
@@ -162,7 +194,13 @@ impl OsKeyringBackend {
 impl KeystoreBackend for OsKeyringBackend {
     async fn init(&mut self, _config: Option<&str>) -> Result<(), SignerError> {
         Self::check_keyring_availability()?;
-        self.load_key_from_keyring()?;
+        
+        // Only try to load the key if it exists in the keyring
+        // This allows for operations like delete without requiring the key to be loaded first
+        if self.key_exists_in_keyring() {
+            self.load_key_from_keyring()?;
+        }
+        
         Ok(())
     }
 

@@ -22,8 +22,9 @@ path = "/secure/path/validator.keystore"
 # env_var = "VALIDATOR_PRIVATE_KEY"
 
 # OS keyring backend - secure system-level storage (Linux/macOS only)
+# First add your key: starknet-remote-signer keys add validator --private-key YOUR_KEY
 # backend = "os_keyring"
-# key_name = "validator"  # Your key name
+# key_name = "validator"  # The key you added
 
 [security]
 # CRITICAL: Always configure these allowlists for production

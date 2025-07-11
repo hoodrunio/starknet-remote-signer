@@ -16,6 +16,80 @@ pub use server::Server;
 pub use signer::StarknetSigner;
 
 #[derive(Parser)]
+enum Commands {
+    /// Start the remote signer server
+    Start(StartArgs),
+    /// Initialize and create encrypted keystore file
+    Init(InitArgs),
+    /// Key management commands
+    Keys {
+        #[command(subcommand)]
+        command: KeysCommands,
+    },
+}
+
+#[derive(Parser)]
+enum KeysCommands {
+    /// Add a new key to keystore
+    Add(AddKeyArgs),
+    /// Delete a key from keystore  
+    Delete(DeleteKeyArgs),
+    /// List all keys in keystore
+    List(ListKeysArgs),
+}
+
+#[derive(Parser)]
+pub struct AddKeyArgs {
+    /// Key name (like "validator", "alice", etc.)
+    pub key_name: String,
+
+    /// Private key hex string (without 0x prefix)
+    #[arg(long)]
+    pub private_key: String,
+
+    /// Keystore backend: "software", "environment", "os_keyring"
+    #[arg(long, default_value = "os_keyring")]
+    pub backend: String,
+
+    /// Path for software keystore (required for software backend)
+    #[arg(long)]
+    pub keystore_path: Option<String>,
+
+    /// Passphrase for software keystore (required for software backend)
+    #[arg(long)]
+    pub passphrase: Option<String>,
+}
+
+#[derive(Parser)]
+pub struct DeleteKeyArgs {
+    /// Key name to delete
+    pub key_name: String,
+
+    /// Keystore backend: "software", "environment", "os_keyring"
+    #[arg(long, default_value = "os_keyring")]
+    pub backend: String,
+
+    /// Path for software keystore (required for software backend)
+    #[arg(long)]
+    pub keystore_path: Option<String>,
+
+    /// Confirm deletion (safety check)
+    #[arg(long)]
+    pub confirm: bool,
+}
+
+#[derive(Parser)]
+pub struct ListKeysArgs {
+    /// Keystore backend: "software", "environment", "os_keyring"
+    #[arg(long, default_value = "os_keyring")]
+    pub backend: String,
+
+    /// Path for software keystore (required for software backend)
+    #[arg(long)]
+    pub keystore_path: Option<String>,
+}
+
+#[derive(Parser)]
 pub struct StartArgs {
     /// Configuration file path
     #[arg(short, long, env = "SIGNER_CONFIG")]
@@ -29,9 +103,13 @@ pub struct StartArgs {
     #[arg(short, long, env = "SIGNER_PORT", default_value = "3000")]
     pub port: u16,
 
-    /// Keystore backend: "software", "environment", "hsm"
+    /// Keystore backend: "software", "environment", "os_keyring"
     #[arg(long, env = "SIGNER_KEYSTORE_BACKEND")]
     pub keystore_backend: Option<String>,
+
+    /// Key name to use (for os_keyring backend)
+    #[arg(long, env = "SIGNER_KEY_NAME")]
+    pub key_name: Option<String>,
 
     /// Path to encrypted keystore file (for software backend)
     #[arg(long, env = "SIGNER_KEYSTORE_PATH")]
@@ -40,10 +118,6 @@ pub struct StartArgs {
     /// Environment variable name for private key (for environment backend)
     #[arg(long, env = "SIGNER_ENV_VAR", default_value = "SIGNER_PRIVATE_KEY")]
     pub env_var: Option<String>,
-
-    /// OS keyring key name (for os_keyring backend) - like "validator", "alice", etc.
-    #[arg(long, env = "SIGNER_KEYRING_KEY_NAME", default_value = "validator")]
-    pub keyring_key_name: Option<String>,
 
     /// Passphrase for encrypted keystore
     #[arg(long, env = "SIGNER_PASSPHRASE")]
@@ -61,21 +135,9 @@ pub struct StartArgs {
     #[arg(long, env = "SIGNER_TLS_KEY")]
     pub tls_key: Option<String>,
 
-
-
     /// Log level
     #[arg(long, env = "RUST_LOG", default_value = "info")]
     pub log_level: String,
-}
-
-#[derive(Parser)]
-enum Commands {
-    /// Start the remote signer server
-    Start(StartArgs),
-    /// Initialize and create encrypted keystore
-    Init(InitArgs),
-    /// Delete key from keystore
-    DeleteKey(DeleteKeyArgs),
 }
 
 #[derive(Parser)]
@@ -91,29 +153,6 @@ struct InitArgs {
     /// Passphrase for encryption
     #[arg(long)]
     passphrase: String,
-}
-
-#[derive(Parser)]
-pub struct DeleteKeyArgs {
-    /// Keystore backend: "software", "environment", "os_keyring"
-    #[arg(long, env = "SIGNER_KEYSTORE_BACKEND", default_value = "os_keyring")]
-    pub backend: String,
-
-    /// Path to encrypted keystore file (for software backend)
-    #[arg(long, env = "SIGNER_KEYSTORE_PATH")]
-    pub keystore_path: Option<String>,
-
-    /// Environment variable name (for environment backend)
-    #[arg(long, env = "SIGNER_ENV_VAR")]
-    pub env_var: Option<String>,
-
-    /// OS keyring key name (for os_keyring backend) - like "validator", "alice", etc.
-    #[arg(long, env = "SIGNER_KEYRING_KEY_NAME", default_value = "validator")]
-    pub key_name: Option<String>,
-
-    /// Confirm deletion (safety check)
-    #[arg(long)]
-    pub confirm: bool,
 }
 
 // Integration tests

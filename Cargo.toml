@@ -55,7 +55,7 @@ rustls-pemfile = "2.0"
 axum-server = { version = "0.7", features = ["tls-rustls"] }
 
 # OS Keyring support
-keyring = "3.6.2"
+keyring = { version = "3.6.2", features = ["apple-native"] }
 
 # Platform-specific keyring implementations
 [target.'cfg(target_os = "linux")'.dependencies]

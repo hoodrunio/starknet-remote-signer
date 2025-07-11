@@ -88,8 +88,8 @@ impl Server {
 
         // Initialize security validator (always create for proper validation)
         let security = SecurityValidator::new(
-            config.security.allowed_chain_ids.clone(),
-            config.security.allowed_ips.clone(),
+                config.security.allowed_chain_ids.clone(),
+                config.security.allowed_ips.clone(),
         )?;
 
         // Initialize audit logger if configured
@@ -120,7 +120,7 @@ impl Server {
         );
 
         info!("🚀 Starknet Remote Signer starting on {}", addr);
-
+        
         // Create TLS manager
         let tls_manager = TlsManager::new(self.config.tls.clone());
         
@@ -225,30 +225,30 @@ async fn sign_transaction(
     };
 
     // Security checks
-    // Check IP allowlist
+        // Check IP allowlist
     if let Err(_) = validate_ip_access(&state.security, &headers, &addr) {
-        if let Some(audit) = &mut audit_entry {
-            audit.set_error(format!("Unauthorized IP: {}", real_ip));
-            audit.update_duration(start_time);
-            if let Some(logger) = &state.audit_logger {
-                let _ = logger.log(audit).await;
+            if let Some(audit) = &mut audit_entry {
+                audit.set_error(format!("Unauthorized IP: {}", real_ip));
+                audit.update_duration(start_time);
+                if let Some(logger) = &state.audit_logger {
+                    let _ = logger.log(audit).await;
+                }
             }
+            warn!("Rejected request from unauthorized IP: {}", real_ip);
+            return Err(StatusCode::FORBIDDEN);
         }
-        warn!("Rejected request from unauthorized IP: {}", real_ip);
-        return Err(StatusCode::FORBIDDEN);
-    }
 
-    // Check chain ID
+        // Check chain ID
     if let Err(e) = state.security.validate_chain_id(request.chain_id) {
-        if let Some(audit) = &mut audit_entry {
-            audit.set_error(e.to_string());
-            audit.update_duration(start_time);
-            if let Some(logger) = &state.audit_logger {
-                let _ = logger.log(audit).await;
+            if let Some(audit) = &mut audit_entry {
+                audit.set_error(e.to_string());
+                audit.update_duration(start_time);
+                if let Some(logger) = &state.audit_logger {
+                    let _ = logger.log(audit).await;
+                }
             }
-        }
-        warn!("Rejected request for unauthorized chain ID: 0x{:x}", request.chain_id);
-        return Err(StatusCode::BAD_REQUEST);
+            warn!("Rejected request for unauthorized chain ID: 0x{:x}", request.chain_id);
+            return Err(StatusCode::BAD_REQUEST);
     }
 
     info!(
