@@ -45,6 +45,8 @@ async-trait = "0.1.88"
 hex = "0.4"
 zeroize = { version = "1.8.1", features = ["derive"] }
 josekit = "0.10.3"
+# Add vendored OpenSSL for cross-compilation in GitHub Actions
+openssl = { version = "0.10.73", features = ["vendored"] }
 
 # TLS support
 rustls = "0.23"
