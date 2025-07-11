@@ -3,6 +3,7 @@ use clap::Parser;
 pub mod config;
 pub mod errors;
 pub mod keystore;
+pub mod key_management;
 pub mod server;
 pub mod signer;
 pub mod audit;
