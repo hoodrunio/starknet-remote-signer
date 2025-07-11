@@ -13,13 +13,13 @@ cert_file = "/path/to/certificate.pem"
 key_file = "/path/to/private-key.pem"
 
 [keystore]
-# Use software backend for production (encrypted keystore files)
+# Use software backend
 # backend = "software"
 # path = "/secure/path/validator.keystore"
 
 # Use file backend
 backend = "file"
-dir = "./path/to/keystore"
+dir = "./keystore"
 
 # For development only - environment backend (NOT recommended for production)
 # backend = "environment"

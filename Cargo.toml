@@ -42,12 +42,9 @@ thiserror = "1.0"
 async-trait = "0.1.88"
 
 # Security & Crypto
-rand = "0.8"
 hex = "0.4"
-aes-gcm = "0.10"
-pbkdf2 = "0.12"
-sha2 = "0.10"
-zeroize = { version = "1.8", features = ["derive"] }
+zeroize = { version = "1.8.1", features = ["derive"] }
+josekit = "0.10.3"
 
 # TLS support
 rustls = "0.23"

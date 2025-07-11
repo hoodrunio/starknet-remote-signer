@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::errors::SignerError;
 use crate::keystore::backends::KeystoreBackend;
 use crate::keystore::key_material::KeyMaterial;
-use crate::keystore::encryption::{encrypt_key, decrypt_key, EncryptedKeystore};
+use crate::keystore::encryption::{encrypt_key, decrypt_key};
 
 /// File-based keystore backend using encrypted directory storage
 /// Similar to Cosmos-SDK file keyring backend
@@ -180,13 +180,10 @@ impl FileBackend {
     fn load_key_from_file(&self, key_name: &str, password: &str) -> Result<KeyMaterial, SignerError> {
         let key_path = self.key_file_path(key_name);
         
-        let encrypted_data = fs::read(&key_path)
+        let jwe_token = fs::read_to_string(&key_path)
             .map_err(|e| SignerError::Config(format!("Failed to read key file {}: {}", key_name, e)))?;
 
-        let keystore: EncryptedKeystore = serde_json::from_slice(&encrypted_data)
-            .map_err(|e| SignerError::Config(format!("Failed to parse key file {}: {}", key_name, e)))?;
-
-        let decrypted_key = decrypt_key(&keystore, password)?;
+        let decrypted_key = decrypt_key(&jwe_token, password)?;
         Ok(KeyMaterial::from_bytes(decrypted_key))
     }
 
@@ -194,11 +191,9 @@ impl FileBackend {
     fn save_key_to_file(&self, key_name: &str, key_material: &KeyMaterial, password: &str) -> Result<(), SignerError> {
         let key_path = self.key_file_path(key_name);
         
-        let encrypted_keystore = encrypt_key(key_material.raw_bytes(), password)?;
-        let serialized = serde_json::to_string_pretty(&encrypted_keystore)
-            .map_err(|e| SignerError::Config(format!("Failed to serialize key {}: {}", key_name, e)))?;
+        let jwe_token = encrypt_key(key_material.raw_bytes(), password)?;
 
-        fs::write(&key_path, serialized)
+        fs::write(&key_path, &jwe_token)
             .map_err(|e| SignerError::Config(format!("Failed to write key file {}: {}", key_name, e)))?;
 
         // Set restrictive permissions (Unix only)

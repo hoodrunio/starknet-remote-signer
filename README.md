@@ -10,7 +10,7 @@ Choose one of the keystore backends:
 
 ```bash
 # File backend (Recommended)
-starknet-remote-signer keys add my-key --backend file --keystore-dir ./keystore
+starknet-remote-signer keys add my-key --backend file --keystore-dir ./keystore --private-key YOUR_PRIVATE_KEY
 
 # OS keyring
 starknet-remote-signer keys add my-key --private-key YOUR_PRIVATE_KEY

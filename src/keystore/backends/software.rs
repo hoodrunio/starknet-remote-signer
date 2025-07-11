@@ -6,7 +6,7 @@ use tracing::{info, warn};
 use crate::errors::SignerError;
 use crate::keystore::backends::KeystoreBackend;
 use crate::keystore::key_material::KeyMaterial;
-use crate::keystore::encryption::{encrypt_key, decrypt_key, EncryptedKeystore};
+use crate::keystore::encryption::{encrypt_key, decrypt_key};
 
 /// Software-based keystore backend using encrypted files
 #[derive(Debug)]
@@ -31,12 +31,9 @@ impl SoftwareBackend {
         passphrase: &str,
     ) -> Result<(), SignerError> {
         let key_material = KeyMaterial::from_hex(private_key_hex)?;
-        let encrypted_keystore = encrypt_key(key_material.raw_bytes(), passphrase)?;
+        let jwe_token = encrypt_key(key_material.raw_bytes(), passphrase)?;
 
-        let serialized = serde_json::to_string_pretty(&encrypted_keystore)
-            .map_err(|e| SignerError::Config(format!("Failed to serialize keystore: {}", e)))?;
-
-        fs::write(keystore_path, serialized)
+        fs::write(keystore_path, &jwe_token)
             .map_err(|e| SignerError::Config(format!("Failed to write keystore: {}", e)))?;
 
         // Set restrictive permissions (Unix only)
@@ -57,13 +54,10 @@ impl SoftwareBackend {
 
     /// Load encrypted software key
     async fn load_software_key(&mut self, passphrase: &str) -> Result<(), SignerError> {
-        let encrypted_data = fs::read(&self.keystore_path)
+        let jwe_token = fs::read_to_string(&self.keystore_path)
             .map_err(|e| SignerError::Config(format!("Failed to read keystore: {}", e)))?;
 
-        let keystore: EncryptedKeystore = serde_json::from_slice(&encrypted_data)
-            .map_err(|e| SignerError::Config(format!("Failed to parse keystore: {}", e)))?;
-
-        let decrypted_key = decrypt_key(&keystore, passphrase)?;
+        let decrypted_key = decrypt_key(&jwe_token, passphrase)?;
         self.key_material = Some(KeyMaterial::from_bytes(decrypted_key));
 
         info!("Loaded encrypted keystore from: {}", self.keystore_path);

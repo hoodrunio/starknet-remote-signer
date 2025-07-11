@@ -1,91 +1,50 @@
-use rand::{RngCore, rngs::OsRng};
-use serde::{Deserialize, Serialize};
-use zeroize::Zeroize;
+use josekit::jwe::{JweHeader, PBES2_HS256_A128KW};
 
 use crate::errors::SignerError;
 
-/// Key derivation parameters for PBKDF2
-pub const PBKDF2_ITERATIONS: u32 = 100_000;
-pub const SALT_SIZE: usize = 32;
-pub const KEY_SIZE: usize = 32;
+/// JOSE JWE token for encrypted key storage
+/// Uses PBES2-HS256+A128KW for password-based key derivation and wrapping
+/// Uses A256GCM for content encryption
+pub type EncryptedKeystore = String;
 
-/// Encrypted key storage format
-#[derive(Serialize, Deserialize)]
-pub struct EncryptedKeystore {
-    /// PBKDF2 salt
-    pub salt: Vec<u8>,
-    /// Encrypted private key
-    pub encrypted_key: Vec<u8>,
-    /// AES-GCM nonce
-    pub nonce: Vec<u8>,
-    /// Key derivation iterations
-    pub iterations: u32,
-    /// Version for future compatibility
-    pub version: u8,
-}
-
-/// Encrypt private key using AES-256-GCM with PBKDF2 key derivation
+/// Encrypt private key using JOSE JWE with PBES2-HS256+A128KW and A256GCM
 pub fn encrypt_key(private_key: &[u8; 32], passphrase: &str) -> Result<EncryptedKeystore, SignerError> {
-    use aes_gcm::{Aes256Gcm, KeyInit, aead::Aead};
-    use pbkdf2::pbkdf2_hmac;
-    use sha2::Sha256;
+    // Create JWE header with PBES2-HS256+A128KW key management and A256GCM content encryption
+    let mut header = JweHeader::new();
+    header.set_algorithm("PBES2-HS256+A128KW");
+    header.set_content_encryption("A256GCM");
+    
+    // Create encrypter from password
+    let encrypter = PBES2_HS256_A128KW.encrypter_from_bytes(passphrase.as_bytes())
+        .map_err(|e| SignerError::Crypto(format!("Failed to create encrypter: {}", e)))?;
 
-    // Generate random salt and nonce
-    let mut salt = [0u8; SALT_SIZE];
-    let mut nonce = [0u8; 12]; // GCM nonce is 12 bytes
-    OsRng.fill_bytes(&mut salt);
-    OsRng.fill_bytes(&mut nonce);
-
-    // Derive key from passphrase
-    let mut derived_key = [0u8; KEY_SIZE];
-    pbkdf2_hmac::<Sha256>(passphrase.as_bytes(), &salt, PBKDF2_ITERATIONS, &mut derived_key);
-
-    // Encrypt the private key
-    let cipher = Aes256Gcm::new((&derived_key).into());
-    let encrypted_key = cipher.encrypt((&nonce).into(), private_key.as_ref())
+    // Encrypt the private key data
+    let jwe_token = josekit::jwe::serialize_compact(private_key, &header, &encrypter)
         .map_err(|e| SignerError::Crypto(format!("Encryption failed: {}", e)))?;
 
-    // Zeroize sensitive data
-    derived_key.zeroize();
-
-    Ok(EncryptedKeystore {
-        salt: salt.to_vec(),
-        encrypted_key,
-        nonce: nonce.to_vec(),
-        iterations: PBKDF2_ITERATIONS,
-        version: 1,
-    })
+    Ok(jwe_token)
 }
 
-/// Decrypt private key
-pub fn decrypt_key(keystore: &EncryptedKeystore, passphrase: &str) -> Result<[u8; 32], SignerError> {
-    use aes_gcm::{Aes256Gcm, KeyInit, aead::Aead};
-    use pbkdf2::pbkdf2_hmac;
-    use sha2::Sha256;
+/// Decrypt private key from JOSE JWE token
+pub fn decrypt_key(jwe_token: &str, passphrase: &str) -> Result<[u8; 32], SignerError> {
+    // Create decrypter from password
+    let decrypter = PBES2_HS256_A128KW.decrypter_from_bytes(passphrase.as_bytes())
+        .map_err(|e| SignerError::Crypto(format!("Failed to create decrypter: {}", e)))?;
 
-    // Derive key from passphrase
-    let mut derived_key = [0u8; KEY_SIZE];
-    pbkdf2_hmac::<Sha256>(
-        passphrase.as_bytes(), 
-        &keystore.salt, 
-        keystore.iterations, 
-        &mut derived_key
-    );
-
-    // Decrypt the private key
-    let cipher = Aes256Gcm::new((&derived_key).into());
-    let nonce_slice = keystore.nonce.as_slice();
-    let decrypted = cipher.decrypt(nonce_slice.into(), keystore.encrypted_key.as_ref())
+    // Decrypt the JWE token
+    let (decrypted_data, _header) = josekit::jwe::deserialize_compact(jwe_token, &decrypter)
         .map_err(|e| SignerError::Crypto(format!("Decryption failed: {}", e)))?;
 
-    // Zeroize sensitive data
-    derived_key.zeroize();
-
-    if decrypted.len() != 32 {
-        return Err(SignerError::InvalidKey("Invalid decrypted key length".to_string()));
+    // Ensure the decrypted data is the correct length
+    if decrypted_data.len() != 32 {
+        return Err(SignerError::InvalidKey(format!(
+            "Invalid decrypted key length: expected 32 bytes, got {}",
+            decrypted_data.len()
+        )));
     }
 
+    // Convert to fixed-size array
     let mut key = [0u8; 32];
-    key.copy_from_slice(&decrypted);
+    key.copy_from_slice(&decrypted_data);
     Ok(key)
 } 
