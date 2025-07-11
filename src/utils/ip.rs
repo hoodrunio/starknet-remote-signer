@@ -58,10 +58,10 @@ pub fn extract_real_ip(headers: &HeaderMap, connect_info: &SocketAddr) -> IpAddr
 /// Validate IP address access with real IP extraction
 /// 
 /// This function extracts the real client IP and validates it against
-/// the security policy if one is configured.
+/// the security policy.
 /// 
 /// # Arguments
-/// * `security` - Optional security validator containing IP allowlists
+/// * `security` - Security validator containing IP allowlists
 /// * `headers` - HTTP headers from the request
 /// * `connect_info` - Direct TCP connection information
 /// 
@@ -69,17 +69,16 @@ pub fn extract_real_ip(headers: &HeaderMap, connect_info: &SocketAddr) -> IpAddr
 /// * `Ok(IpAddr)` - The validated real client IP
 /// * `Err(StatusCode)` - HTTP 403 Forbidden if IP is not allowed
 pub fn validate_ip_access(
-    security: &Option<SecurityValidator>, 
+    security: &SecurityValidator, 
     headers: &HeaderMap, 
     connect_info: &SocketAddr
 ) -> Result<IpAddr, StatusCode> {
     let real_ip = extract_real_ip(headers, connect_info);
     
-    if let Some(security) = security {
-        if let Err(_) = security.validate_ip(&real_ip) {
-            return Err(StatusCode::FORBIDDEN);
-        }
+    if let Err(_) = security.validate_ip(&real_ip) {
+        return Err(StatusCode::FORBIDDEN);
     }
+    
     Ok(real_ip)
 }
 

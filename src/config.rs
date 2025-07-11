@@ -142,6 +142,11 @@ impl Config {
                         "Environment variable name is required for environment backend".to_string()
                     ));
                 }
+                
+                // Security warning for environment variable usage
+                tracing::warn!("⚠️  SECURITY WARNING: Environment backend configured");
+                tracing::warn!("⚠️  Private keys stored in environment variables are less secure");
+                tracing::warn!("⚠️  Consider using 'software' backend with encrypted keystore for production");
             }
             "hsm" => {
                 return Err(SignerError::Config(
@@ -184,6 +189,32 @@ impl Config {
         if self.server.port == 0 {
             return Err(SignerError::Config(
                 "Invalid port number: must be between 1 and 65535".to_string()
+            ));
+        }
+
+        // Security validations
+        if self.server.address == "0.0.0.0" && !self.tls.enabled {
+            tracing::warn!("⚠️  SECURITY WARNING: Server binding to 0.0.0.0 without TLS");
+            tracing::warn!("⚠️  This exposes the signer to all network interfaces unencrypted");
+            tracing::warn!("⚠️  Consider enabling TLS or binding to a specific interface");
+        }
+
+        if self.keystore.backend == "environment" && self.tls.enabled {
+            tracing::warn!("⚠️  SECURITY WARNING: Environment keystore with TLS enabled");
+            tracing::warn!("⚠️  While TLS encrypts network traffic, private keys are still in env vars");
+        }
+
+        // Validate that if IP restrictions are empty, we at least have chain ID restrictions
+        if self.security.allowed_ips.is_empty() && self.security.allowed_chain_ids.is_empty() {
+            tracing::warn!("⚠️  SECURITY WARNING: No IP or chain ID restrictions configured");
+            tracing::warn!("⚠️  This allows any IP to sign for any chain - highly insecure for production");
+            tracing::warn!("⚠️  Configure 'allowed_ips' and 'allowed_chain_ids' in your config");
+        }
+
+        // Validate that we have at least one restriction if audit is disabled
+        if !self.audit.enabled && self.security.allowed_ips.is_empty() && self.security.allowed_chain_ids.is_empty() {
+            return Err(SignerError::Config(
+                "Either audit logging must be enabled OR security restrictions must be configured (or both)".to_string()
             ));
         }
 

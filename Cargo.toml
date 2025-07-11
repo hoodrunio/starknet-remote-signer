@@ -45,9 +45,11 @@ pbkdf2 = "0.12"
 sha2 = "0.10"
 zeroize = { version = "1.8", features = ["derive"] }
 
-# Optional TLS support
-rustls = { version = "0.23", optional = true }
-tokio-rustls = { version = "0.26", optional = true }
+# TLS support
+rustls = "0.23"
+tokio-rustls = "0.26"
+rustls-pemfile = "2.0"
+axum-server = { version = "0.7", features = ["tls-rustls"] }
 
 [dev-dependencies]
 axum-test = "17.3"
@@ -55,7 +57,6 @@ tempfile = "3.0"
 
 [features]
 default = []
-tls = ["rustls", "tokio-rustls"]
 
 [lib]
 name = "starknet_remote_signer"

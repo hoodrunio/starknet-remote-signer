@@ -1,32 +1,47 @@
-# Production Configuration for Starknet Remote Signer
+# Starknet Remote Signer Configuration
+# This file contains secure defaults and best practices
+
 [server]
-address = "0.0.0.0"  # Listen on all interfaces in prod
+# Bind to localhost only for security (use reverse proxy for external access)
+address = "127.0.0.1"
 port = 3000
 
-[security]
-# Chain restrictions - only allow specific chains
-allowed_chain_ids = ["SN_MAIN"]  # Only mainnet in production
-# allowed_chain_ids = ["SN_SEPOLIA"]  # For testnet deployment
+[tls]
+# Always enable TLS in production
+enabled = true
+cert_file = "/path/to/certificate.pem"
+key_file = "/path/to/private-key.pem"
 
-# IP allowlist - restrict to known attestation nodes
+[keystore]
+# Use software backend for production (encrypted keystore files)
+backend = "software"
+path = "/secure/path/validator.keystore"
+
+# For development only - environment backend (NOT recommended for production)
+# backend = "environment"
+# env_var = "VALIDATOR_PRIVATE_KEY"
+
+[security]
+# CRITICAL: Always configure these allowlists for production
+# Empty allowlists allow ALL IPs and chains - extremely dangerous
+
+# Only allow specific chain IDs
+allowed_chain_ids = ["SN_MAIN"]  # Mainnet only
+# allowed_chain_ids = ["SN_SEPOLIA"]  # Testnet only
+# allowed_chain_ids = ["SN_MAIN", "SN_SEPOLIA"]  # Both mainnet and testnet
+
+# Only allow specific IP addresses
 allowed_ips = [
-    # "10.0.0.10",  # Example: attestation-node-1
-    # "10.0.0.11",  # Example: attestation-node-2
+    "10.0.0.1",        # Validator node 1
+    "10.0.0.2",        # Validator node 2
+    "192.168.1.100",   # Management server
 ]
 
 [audit]
+# Enable comprehensive audit logging
 enabled = true
 log_path = "/var/log/starknet-signer/audit.log"
 rotate_daily = true
-
-[tls]
-enabled = false  # Optional - use reverse proxy instead
-# cert_file = "/path/to/your/cert.pem"
-# key_file = "/path/to/your/private-key.pem"
-
-[keystore]
-backend = "software"  # Most secure: encrypted file
-path = "./keystore.json"
 
 [logging]
 level = "info"  # Info level is sufficient for production

@@ -129,8 +129,29 @@ impl Keystore {
 
     /// Load key from environment variable
     fn load_environment_key(&mut self, var_name: &str) -> Result<(), SignerError> {
+        // Security warning for environment variable usage
+        tracing::warn!("⚠️  SECURITY WARNING: Loading private key from environment variable");
+        tracing::warn!("⚠️  Environment variables can be visible to other processes and may be logged");
+        tracing::warn!("⚠️  This method is NOT recommended for production use");
+        tracing::warn!("⚠️  Consider using the 'software' backend with encrypted keystore instead");
+        
         let private_key_hex = std::env::var(var_name)
             .map_err(|_| SignerError::Config(format!("Environment variable {} not set", var_name)))?;
+
+        // Validate the private key format
+        if private_key_hex.is_empty() {
+            return Err(SignerError::InvalidKey("Private key cannot be empty".to_string()));
+        }
+
+        // Ensure the key is properly formatted (hex string)
+        if !private_key_hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(SignerError::InvalidKey("Private key must be a valid hex string".to_string()));
+        }
+
+        // Validate key length (64 hex characters = 32 bytes)
+        if private_key_hex.len() != 64 {
+            return Err(SignerError::InvalidKey("Private key must be exactly 64 hex characters (32 bytes)".to_string()));
+        }
 
         self.key_material = Some(KeyMaterial::from_hex(&private_key_hex)?);
         Ok(())

@@ -20,7 +20,7 @@ use crate::config::Config;
 use crate::errors::SignerError;
 use crate::security::SecurityValidator;
 use crate::signer::{StarknetSigner, compute_transaction_hash};
-use crate::utils::{extract_real_ip, validate_ip_access};
+use crate::utils::{extract_real_ip, validate_ip_access, TlsManager};
 
 /// Shared application state
 #[derive(Clone)]
@@ -28,7 +28,7 @@ pub struct AppState {
     pub signer: StarknetSigner,
     pub config: Config,
     pub metrics: Arc<Metrics>,
-    pub security: Option<SecurityValidator>,
+    pub security: SecurityValidator,
     pub audit_logger: Option<Arc<AuditLogger>>,
 }
 
@@ -86,15 +86,11 @@ impl Server {
         let signer = StarknetSigner::new(keystore)?;
         let metrics = Arc::new(Metrics::default());
 
-        // Initialize security validator if configured
-        let security = if !config.security.allowed_chain_ids.is_empty() || !config.security.allowed_ips.is_empty() {
-            Some(SecurityValidator::new(
-                config.security.allowed_chain_ids.clone(),
-                config.security.allowed_ips.clone(),
-            )?)
-        } else {
-            None
-        };
+        // Initialize security validator (always create for proper validation)
+        let security = SecurityValidator::new(
+            config.security.allowed_chain_ids.clone(),
+            config.security.allowed_ips.clone(),
+        )?;
 
         // Initialize audit logger if configured
         let audit_logger = if config.audit.enabled {
@@ -124,21 +120,20 @@ impl Server {
         );
 
         info!("🚀 Starknet Remote Signer starting on {}", addr);
+
+        // Create TLS manager
+        let tls_manager = TlsManager::new(self.config.tls.clone());
         
-        let listener = tokio::net::TcpListener::bind(addr).await
-            .map_err(|e| SignerError::Internal(format!("Failed to bind to {}: {}", addr, e)))?;
+        // Log TLS configuration
+        info!("TLS Configuration: {}", tls_manager.get_config_summary());
 
-        if self.config.tls.enabled {
-            info!("🔒 TLS enabled");
-            // Note: TLS implementation would go here if needed
-            warn!("TLS support not yet implemented in this version");
+        if tls_manager.is_enabled() {
+            // Start TLS server
+            tls_manager.serve_tls(app, addr).await?;
+        } else {
+            // Start HTTP server
+            TlsManager::serve_http(app, addr).await?;
         }
-
-        info!("✅ Server ready - accepting connections");
-
-        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-            .await
-            .map_err(|e| SignerError::Internal(format!("Server error: {}", e)))?;
 
         Ok(())
     }
@@ -153,7 +148,8 @@ impl Server {
             .layer(
                 ServiceBuilder::new()
                     .layer(TraceLayer::new_for_http())
-                    .layer(CorsLayer::permissive()),
+                    .layer(CorsLayer::permissive())
+                    .layer(axum::middleware::from_fn(security_headers_middleware)),
             )
     }
 }
@@ -229,32 +225,30 @@ async fn sign_transaction(
     };
 
     // Security checks
-    if let Some(security) = &state.security {
-        // Check IP allowlist
-        if let Err(_) = validate_ip_access(&Some(security.clone()), &headers, &addr) {
-            if let Some(audit) = &mut audit_entry {
-                audit.set_error(format!("Unauthorized IP: {}", real_ip));
-                audit.update_duration(start_time);
-                if let Some(logger) = &state.audit_logger {
-                    let _ = logger.log(audit).await;
-                }
+    // Check IP allowlist
+    if let Err(_) = validate_ip_access(&state.security, &headers, &addr) {
+        if let Some(audit) = &mut audit_entry {
+            audit.set_error(format!("Unauthorized IP: {}", real_ip));
+            audit.update_duration(start_time);
+            if let Some(logger) = &state.audit_logger {
+                let _ = logger.log(audit).await;
             }
-            warn!("Rejected request from unauthorized IP: {}", real_ip);
-            return Err(StatusCode::FORBIDDEN);
         }
+        warn!("Rejected request from unauthorized IP: {}", real_ip);
+        return Err(StatusCode::FORBIDDEN);
+    }
 
-        // Check chain ID
-        if let Err(e) = security.validate_chain_id(request.chain_id) {
-            if let Some(audit) = &mut audit_entry {
-                audit.set_error(e.to_string());
-                audit.update_duration(start_time);
-                if let Some(logger) = &state.audit_logger {
-                    let _ = logger.log(audit).await;
-                }
+    // Check chain ID
+    if let Err(e) = state.security.validate_chain_id(request.chain_id) {
+        if let Some(audit) = &mut audit_entry {
+            audit.set_error(e.to_string());
+            audit.update_duration(start_time);
+            if let Some(logger) = &state.audit_logger {
+                let _ = logger.log(audit).await;
             }
-            warn!("Rejected request for unauthorized chain ID: 0x{:x}", request.chain_id);
-            return Err(StatusCode::BAD_REQUEST);
         }
+        warn!("Rejected request for unauthorized chain ID: 0x{:x}", request.chain_id);
+        return Err(StatusCode::BAD_REQUEST);
     }
 
     info!(
@@ -278,6 +272,7 @@ async fn sign_transaction(
                     let _ = logger.log(audit).await;
                 }
             }
+
             state.metrics.sign_errors.fetch_add(1, Ordering::Relaxed);
             error!("Failed to compute transaction hash: {}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
@@ -341,7 +336,27 @@ async fn get_metrics(
     }))
 }
 
-
+/// Middleware to add security headers to all responses
+async fn security_headers_middleware(
+    request: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let mut response = next.run(request).await;
+    
+    // Add security headers
+    let headers = response.headers_mut();
+    headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
+    headers.insert("X-Frame-Options", "DENY".parse().unwrap());
+    headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
+    headers.insert("Strict-Transport-Security", "max-age=31536000; includeSubDomains".parse().unwrap());
+    headers.insert("Content-Security-Policy", "default-src 'none'".parse().unwrap());
+    headers.insert("Referrer-Policy", "no-referrer".parse().unwrap());
+    
+    // Remove server information
+    headers.remove("server");
+    
+    response
+}
 
 #[cfg(test)]
 mod tests {
