@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y \
     libdbus-1-dev \
     gcc-11 \
     g++-11 \
+    perl \
+    make \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 && \
