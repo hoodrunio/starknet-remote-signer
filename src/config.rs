@@ -203,7 +203,7 @@ impl Config {
                     tracing::warn!("   - Use 'file' backend: backend = \"file\"");
                     tracing::warn!("   - Use 'software' backend: backend = \"software\"");
                     tracing::warn!("   - Use 'environment' backend: backend = \"environment\"");
-                    
+
                     return Err(SignerError::Config(
                         "OS keyring backend is not available on MUSL targets due to D-Bus limitations. Use file, software, or environment backend instead.".to_string(),
                     ));
@@ -218,7 +218,9 @@ impl Config {
 
                 #[cfg(all(target_os = "linux", not(target_env = "musl")))]
                 {
-                    tracing::info!("📱 OS keyring backend configured for Linux (with D-Bus support)");
+                    tracing::info!(
+                        "📱 OS keyring backend configured for Linux (with D-Bus support)"
+                    );
                     tracing::info!(
                         "🔐 Keys will be stored in system keyring with key name: '{}'",
                         self.keystore.key_name.as_ref().unwrap()

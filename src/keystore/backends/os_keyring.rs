@@ -59,7 +59,10 @@ impl OsKeyringBackend {
 
     /// Store key in OS keyring
     fn store_key_in_keyring(&self, private_key_hex: &str) -> Result<(), SignerError> {
-        #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_env = "musl")))]
+        #[cfg(all(
+            any(target_os = "linux", target_os = "macos"),
+            not(target_env = "musl")
+        ))]
         {
             use keyring::Entry;
 
@@ -101,7 +104,8 @@ impl OsKeyringBackend {
         #[cfg(target_env = "musl")]
         {
             Err(SignerError::Config(
-                "OS keyring backend is not available on MUSL targets due to D-Bus limitations".to_string(),
+                "OS keyring backend is not available on MUSL targets due to D-Bus limitations"
+                    .to_string(),
             ))
         }
 
@@ -115,7 +119,10 @@ impl OsKeyringBackend {
 
     /// Load key from OS keyring
     fn load_key_from_keyring(&mut self) -> Result<(), SignerError> {
-        #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_env = "musl")))]
+        #[cfg(all(
+            any(target_os = "linux", target_os = "macos"),
+            not(target_env = "musl")
+        ))]
         {
             use keyring::Entry;
 
@@ -153,7 +160,8 @@ impl OsKeyringBackend {
         #[cfg(target_env = "musl")]
         {
             Err(SignerError::Config(
-                "OS keyring backend is not available on MUSL targets due to D-Bus limitations".to_string(),
+                "OS keyring backend is not available on MUSL targets due to D-Bus limitations"
+                    .to_string(),
             ))
         }
 
@@ -167,7 +175,10 @@ impl OsKeyringBackend {
 
     /// Check if key exists in keyring
     fn key_exists_in_keyring(&self) -> bool {
-        #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_env = "musl")))]
+        #[cfg(all(
+            any(target_os = "linux", target_os = "macos"),
+            not(target_env = "musl")
+        ))]
         {
             use keyring::Entry;
 
@@ -178,7 +189,10 @@ impl OsKeyringBackend {
             }
         }
 
-        #[cfg(any(target_env = "musl", not(any(target_os = "linux", target_os = "macos"))))]
+        #[cfg(any(
+            target_env = "musl",
+            not(any(target_os = "linux", target_os = "macos"))
+        ))]
         {
             false
         }
@@ -186,7 +200,10 @@ impl OsKeyringBackend {
 
     /// Delete key from keyring
     fn delete_key_from_keyring(&self) -> Result<(), SignerError> {
-        #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_env = "musl")))]
+        #[cfg(all(
+            any(target_os = "linux", target_os = "macos"),
+            not(target_env = "musl")
+        ))]
         {
             use keyring::Entry;
 
@@ -225,7 +242,8 @@ impl OsKeyringBackend {
         #[cfg(target_env = "musl")]
         {
             Err(SignerError::Config(
-                "OS keyring backend is not available on MUSL targets due to D-Bus limitations".to_string(),
+                "OS keyring backend is not available on MUSL targets due to D-Bus limitations"
+                    .to_string(),
             ))
         }
 
@@ -267,12 +285,18 @@ impl KeystoreBackend for OsKeyringBackend {
     }
 
     fn is_available(&self) -> bool {
-        #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_env = "musl")))]
+        #[cfg(all(
+            any(target_os = "linux", target_os = "macos"),
+            not(target_env = "musl")
+        ))]
         {
             Self::check_keyring_availability().is_ok() && self.key_exists_in_keyring()
         }
 
-        #[cfg(any(target_env = "musl", not(any(target_os = "linux", target_os = "macos"))))]
+        #[cfg(any(
+            target_env = "musl",
+            not(any(target_os = "linux", target_os = "macos"))
+        ))]
         {
             false
         }
@@ -283,6 +307,12 @@ impl KeystoreBackend for OsKeyringBackend {
     }
 
     fn validate_config(&self) -> Result<(), SignerError> {
+        // First check if the key name is valid
+        if self.key_name.is_empty() {
+            return Err(SignerError::Config("Key name cannot be empty".to_string()));
+        }
+
+        // Then check platform availability
         Self::check_keyring_availability()
     }
 
