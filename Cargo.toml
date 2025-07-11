@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "A secure remote signing service for Starknet validators"
 license = "Apache-2.0"
-authors = ["Starknet Remote Signer Team"]
+authors = ["HoodRun"]
 
 [dependencies]
 # Web framework
