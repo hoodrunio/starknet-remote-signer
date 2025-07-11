@@ -1,41 +1,38 @@
 use starknet::core::types::BroadcastedInvokeTransactionV3;
 use starknet_crypto::{Felt, PoseidonHasher, poseidon_hash_many};
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use tracing::{debug, info};
 
 use crate::errors::SignerError;
-use crate::keystore::Keystore;
+use crate::keystore::SharedKeystore;
 
 /// Thread-safe signer that handles Starknet transaction signing
 #[derive(Clone)]
 pub struct StarknetSigner {
-    keystore: Arc<Mutex<Keystore>>,
+    keystore: SharedKeystore,
 }
 
 impl StarknetSigner {
     /// Create a new signer from a keystore
-    pub fn new(keystore: Keystore) -> Result<Self, SignerError> {
-        let public_key = keystore.public_key()?;
+    pub async fn new(keystore: crate::keystore::Keystore) -> Result<Self, SignerError> {
+        let shared_keystore = SharedKeystore::new(keystore);
+        let public_key = shared_keystore.public_key().await?;
         info!("Signer initialized with public key: 0x{:x}", public_key);
 
         Ok(Self {
-            keystore: Arc::new(Mutex::new(keystore)),
+            keystore: shared_keystore,
         })
     }
 
     /// Get the public key of this signer
     pub async fn public_key(&self) -> Result<Felt, SignerError> {
-        let keystore = self.keystore.lock().await;
-        keystore.public_key()
+        self.keystore.public_key().await
     }
 
     /// Sign a transaction hash
     pub async fn sign_transaction_hash(&self, transaction_hash: Felt) -> Result<Vec<Felt>, SignerError> {
         debug!("Signing transaction hash: 0x{:x}", transaction_hash);
         
-        let keystore = self.keystore.lock().await;
-        let signing_key = keystore.signing_key()?;
+        let signing_key = self.keystore.signing_key().await?;
         let signature = signing_key.sign(&transaction_hash)
             .map_err(|e| SignerError::Crypto(format!("Signing failed: {}", e)))?;
 
@@ -216,7 +213,7 @@ mod tests {
         });
         keystore.init(None).await.unwrap();
         
-        let signer = StarknetSigner::new(keystore).unwrap();
+        let signer = StarknetSigner::new(keystore).await.unwrap();
         
         // Test public key retrieval
         let public_key = signer.public_key().await.unwrap();

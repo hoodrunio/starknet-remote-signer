@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 
 use crate::errors::SignerError;
-use crate::keystore::{Keystore, KeystoreBackend};
+use crate::keystore::{Keystore, BackendConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -19,10 +19,12 @@ pub struct Config {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeystoreConfig {
-    pub backend: String, // "software", "environment", "hsm"
+    pub backend: String, // "software", "environment", "os_keyring", "hsm"
     pub path: Option<String>, // For software backend
     pub env_var: Option<String>, // For environment backend
     pub device: Option<String>, // For HSM backend
+    // OS keyring specific field
+    pub key_name: Option<String>, // For OS keyring backend - like "validator", "alice", etc.
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,6 +94,7 @@ impl Config {
                 path: cli.keystore_path,
                 env_var: Some(cli.env_var.unwrap_or_else(|| "SIGNER_PRIVATE_KEY".to_string())),
                 device: None,
+                key_name: cli.keyring_key_name,
             },
             passphrase: cli.passphrase,
             security: SecurityConfig::default(),
@@ -147,6 +150,25 @@ impl Config {
                 tracing::warn!("⚠️  SECURITY WARNING: Environment backend configured");
                 tracing::warn!("⚠️  Private keys stored in environment variables are less secure");
                 tracing::warn!("⚠️  Consider using 'software' backend with encrypted keystore for production");
+            }
+            "os_keyring" => {
+                if self.keystore.key_name.is_none() {
+                    return Err(SignerError::Config(
+                        "Key name is required for OS keyring backend".to_string()
+                    ));
+                }
+                
+                // Platform check
+                #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+                {
+                    return Err(SignerError::Config(
+                        "OS keyring backend is only supported on Linux and macOS".to_string()
+                    ));
+                }
+                
+                tracing::info!("📱 OS keyring backend configured");
+                tracing::info!("🔐 Keys will be stored in system keyring with key name: '{}'", 
+                    self.keystore.key_name.as_ref().unwrap());
             }
             "hsm" => {
                 return Err(SignerError::Config(
@@ -228,7 +250,7 @@ impl Config {
                 let path = self.keystore.path.as_ref().ok_or_else(|| {
                     SignerError::Config("Keystore path not set".to_string())
                 })?;
-                KeystoreBackend::Software {
+                BackendConfig::Software {
                     keystore_path: path.clone(),
                 }
             }
@@ -236,8 +258,16 @@ impl Config {
                 let env_var = self.keystore.env_var.as_ref().ok_or_else(|| {
                     SignerError::Config("Environment variable not set".to_string())
                 })?;
-                KeystoreBackend::Environment {
+                BackendConfig::Environment {
                     var_name: env_var.clone(),
+                }
+            }
+            "os_keyring" => {
+                let key_name = self.keystore.key_name.as_ref().ok_or_else(|| {
+                    SignerError::Config("Key name not set for OS keyring backend".to_string())
+                })?;
+                BackendConfig::OsKeyring {
+                    key_name: key_name.clone(),
                 }
             }
             "hsm" => {
@@ -252,6 +282,6 @@ impl Config {
             }
         };
 
-        Ok(Keystore::new(backend))
+        Ok(Keystore::new(backend)?)
     }
 } 

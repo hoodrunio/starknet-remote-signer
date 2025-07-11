@@ -83,7 +83,7 @@ impl Server {
         let mut keystore = config.create_keystore().await?;
         keystore.init(config.passphrase.as_deref()).await?;
         
-        let signer = StarknetSigner::new(keystore)?;
+        let signer = StarknetSigner::new(keystore).await?;
         let metrics = Arc::new(Metrics::default());
 
         // Initialize security validator (always create for proper validation)
@@ -380,6 +380,7 @@ mod tests {
                 path: None,
                 env_var: Some("TEST_PRIVATE_KEY".to_string()),
                 device: None,
+                key_name: None,
             },
             passphrase: None,
             security: crate::config::SecurityConfig::default(),

@@ -21,6 +21,10 @@ path = "/secure/path/validator.keystore"
 # backend = "environment"
 # env_var = "VALIDATOR_PRIVATE_KEY"
 
+# OS keyring backend - secure system-level storage (Linux/macOS only)
+# backend = "os_keyring"
+# key_name = "validator"  # Your key name
+
 [security]
 # CRITICAL: Always configure these allowlists for production
 # Empty allowlists allow ALL IPs and chains - extremely dangerous

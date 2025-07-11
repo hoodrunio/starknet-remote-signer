@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 
-use starknet_remote_signer::{Config, Server, StartArgs};
+use starknet_remote_signer::{Config, Server, StartArgs, DeleteKeyArgs};
 
 #[derive(Parser)]
 #[command(name = "starknet-remote-signer")]
@@ -23,6 +23,8 @@ enum Commands {
     Start(StartArgs),
     /// Initialize and create encrypted keystore
     Init(InitArgs),
+    /// Delete a key from the keystore
+    DeleteKey(DeleteKeyArgs),
 }
 
 #[derive(Parser)]
@@ -47,6 +49,7 @@ async fn main() -> Result<()> {
     match cli.command {
         Some(Commands::Start(args)) => start_server(args).await,
         Some(Commands::Init(args)) => init_keystore(args).await,
+        Some(Commands::DeleteKey(args)) => delete_key(args).await,
         None => start_server(cli.start_args).await, // Default to start for backward compatibility
     }
 }
@@ -121,6 +124,69 @@ async fn init_keystore(args: InitArgs) -> Result<()> {
     info!("✅ Keystore created successfully!");
     info!("🔑 Public key will be displayed when starting the signer");
     warn!("⚠️  Keep your passphrase secure - it cannot be recovered!");
+
+    Ok(())
+}
+
+async fn delete_key(args: DeleteKeyArgs) -> Result<()> {
+    use starknet_remote_signer::{Keystore, keystore::BackendConfig};
+    
+    // Initialize logging
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter("info")
+        .compact()
+        .finish();
+    tracing::subscriber::set_global_default(subscriber)?;
+
+    if !args.confirm {
+        warn!("❌ Key deletion requires --confirm flag for safety");
+        warn!("💡 Usage: starknet-remote-signer delete-key --backend os_keyring --service starknet-validator --username validator --confirm");
+        return Ok(());
+    }
+
+    info!("🗑️  Deleting key from {} backend", args.backend);
+
+    // Create backend config
+    let backend_config = match args.backend.as_str() {
+        "software" => {
+            let path = args.keystore_path.ok_or_else(|| {
+                anyhow::anyhow!("Keystore path is required for software backend (use --keystore-path)")
+            })?;
+            BackendConfig::Software { 
+                keystore_path: path
+            }
+        }
+        "environment" => {
+            return Err(anyhow::anyhow!("Environment backend does not support key deletion"));
+        }
+        "os_keyring" => {
+            let key_name = args.key_name.ok_or_else(|| {
+                anyhow::anyhow!("Key name is required for OS keyring backend")
+            })?;
+            BackendConfig::OsKeyring { key_name }
+        }
+        _ => {
+            return Err(anyhow::anyhow!("Unknown backend: {}", args.backend));
+        }
+    };
+
+    // Create keystore and delete key
+    let keystore = Keystore::new(backend_config)?;
+    
+    // Validate configuration
+    keystore.validate_config()?;
+    
+    // Attempt to delete the key
+    match keystore.delete_key().await {
+        Ok(()) => {
+            info!("✅ Key deleted successfully from {} backend", args.backend);
+            info!("🔐 The private key has been securely removed");
+        }
+        Err(e) => {
+            error!("❌ Failed to delete key: {}", e);
+            return Err(e.into());
+        }
+    }
 
     Ok(())
 } 

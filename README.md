@@ -94,6 +94,35 @@ backend = "environment"
 env_var = "VALIDATOR_PRIVATE_KEY"
 ```
 
+#### OS Keyring (Recommended for Validators)
+- **Description**: Uses system keyring (GNOME Keyring, KDE Wallet, macOS Keychain)
+- **Security**: High - OS-level encryption and user authentication
+- **Use case**: Validator nodes with user sessions
+- **Platforms**: Linux and macOS only
+
+```toml
+[keystore]
+backend = "os_keyring"
+key_name = "validator"  # key name
+```
+
+**OS Keyring Features:**
+- ✅ **No complex setup** - Just provide a key name
+- ✅ **Fixed service name** - Always "starknet-signer"
+- ✅ **System-level encryption** - Protected by OS security
+- ✅ **User session integration** - Automatic unlock on login
+- ✅ **Backup support** - OS keyring backup tools
+- ⚠️ **Session dependency** - Requires active user session
+
+**Usage Examples:**
+```bash
+# Store a key
+starknet-remote-signer start --keystore-backend os_keyring --keyring-key-name validator
+
+# Delete a key
+starknet-remote-signer delete-key --backend os_keyring --key-name validator --confirm
+```
+
 ### Security Configuration
 
 #### IP Allowlists

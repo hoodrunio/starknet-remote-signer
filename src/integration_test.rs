@@ -30,6 +30,7 @@ mod integration_tests {
                 path: None,
                 env_var: Some("TEST_PRIVATE_KEY".to_string()),
                 device: None,
+                key_name: None,
             },
             passphrase: None,
             security: SecurityConfig {
