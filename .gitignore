@@ -1,7 +1,7 @@
 # Build outputs
 /target/
 **/*.rs.bk
-Cargo.lock
+!Cargo.lock
 
 # IDE files
 .vscode/
@@ -38,7 +38,7 @@ certs/
 logs/
 
 # Docker
-.dockerignore
+!.dockerignore
 docker-compose.override.yml
 
 # Test coverage
