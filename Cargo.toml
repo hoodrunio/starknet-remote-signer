@@ -1,6 +1,6 @@
 [package]
 name = "starknet-remote-signer"
-version = "0.1.2"
+version = "0.1.1"
 edition = "2021"
 description = "A secure remote signing service for Starknet validators"
 license = "Apache-2.0"
