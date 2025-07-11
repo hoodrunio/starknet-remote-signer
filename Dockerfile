@@ -1,11 +1,17 @@
 # Multi-stage build for optimal image size
-FROM rust:1.85-slim as builder
+FROM rust:1.85-slim AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    libdbus-1-dev \
+    gcc-11 \
+    g++-11 \
     && rm -rf /var/lib/apt/lists/*
+
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
 
 # Create app directory
 WORKDIR /app
@@ -26,6 +32,7 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
+    libdbus-1-3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
