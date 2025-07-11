@@ -48,7 +48,7 @@ pub struct AddKeyArgs {
     #[arg(long)]
     pub private_key: String,
 
-    /// Keystore backend: "software", "environment", "os_keyring"
+    /// Keystore backend: "software", "file", "environment", "os_keyring"
     #[arg(long, default_value = "os_keyring")]
     pub backend: String,
 
@@ -56,7 +56,12 @@ pub struct AddKeyArgs {
     #[arg(long)]
     pub keystore_path: Option<String>,
 
-    /// Passphrase for software keystore (required for software backend)
+    /// Directory for file-based keystore (required for file backend)
+    #[arg(long)]
+    pub keystore_dir: Option<String>,
+
+    /// Passphrase for encrypted keystore (will be prompted securely)
+    /// Setting this via CLI argument is NOT recommended for security
     #[arg(long)]
     pub passphrase: Option<String>,
 }
@@ -66,13 +71,17 @@ pub struct DeleteKeyArgs {
     /// Key name to delete
     pub key_name: String,
 
-    /// Keystore backend: "software", "environment", "os_keyring"
+    /// Keystore backend: "software", "file", "environment", "os_keyring"
     #[arg(long, default_value = "os_keyring")]
     pub backend: String,
 
     /// Path for software keystore (required for software backend)
     #[arg(long)]
     pub keystore_path: Option<String>,
+
+    /// Directory for file-based keystore (required for file backend)
+    #[arg(long)]
+    pub keystore_dir: Option<String>,
 
     /// Confirm deletion (safety check)
     #[arg(long)]
@@ -81,13 +90,17 @@ pub struct DeleteKeyArgs {
 
 #[derive(Parser)]
 pub struct ListKeysArgs {
-    /// Keystore backend: "software", "environment", "os_keyring"
+    /// Keystore backend: "software", "file", "environment", "os_keyring"
     #[arg(long, default_value = "os_keyring")]
     pub backend: String,
 
     /// Path for software keystore (required for software backend)
     #[arg(long)]
     pub keystore_path: Option<String>,
+
+    /// Directory for file-based keystore (required for file backend)
+    #[arg(long)]
+    pub keystore_dir: Option<String>,
 }
 
 #[derive(Parser)]
@@ -116,11 +129,16 @@ pub struct StartArgs {
     #[arg(long, env = "SIGNER_KEYSTORE_PATH")]
     pub keystore_path: Option<String>,
 
+    /// Directory for file-based keystore (for file backend)
+    #[arg(long, env = "SIGNER_KEYSTORE_DIR")]
+    pub keystore_dir: Option<String>,
+
     /// Environment variable name for private key (for environment backend)
     #[arg(long, env = "SIGNER_ENV_VAR", default_value = "SIGNER_PRIVATE_KEY")]
     pub env_var: Option<String>,
 
-    /// Passphrase for encrypted keystore
+    /// Passphrase for encrypted keystore (will be prompted securely if needed)
+    /// Setting this via environment variable is NOT recommended for security
     #[arg(long, env = "SIGNER_PASSPHRASE")]
     pub passphrase: Option<String>,
 

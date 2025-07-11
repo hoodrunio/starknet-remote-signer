@@ -2,6 +2,7 @@ use anyhow::Result;
 use tracing::{info, warn, error};
 
 use crate::{Keystore, keystore::{BackendConfig, KeyMaterial}, AddKeyArgs, DeleteKeyArgs, ListKeysArgs};
+use crate::utils::{prompt_for_passphrase_with_confirmation};
 
 /// Key management module - handles add, delete, and list operations for keystores
 
@@ -14,13 +15,47 @@ pub async fn add_key(args: AddKeyArgs) -> Result<()> {
             let path = args.keystore_path.ok_or_else(|| {
                 anyhow::anyhow!("Keystore path is required for software backend (use --keystore-path)")
             })?;
-            let passphrase = args.passphrase.ok_or_else(|| {
-                anyhow::anyhow!("Passphrase is required for software backend (use --passphrase)")
-            })?;
+            
+            // Get passphrase securely with confirmation (new key creation)
+            let passphrase = match args.passphrase {
+                Some(provided) => {
+                    warn!("⚠️  SECURITY WARNING: Passphrase provided via CLI argument");
+                    warn!("⚠️  This method is less secure as the passphrase may be visible in process lists");
+                    warn!("⚠️  Consider omitting --passphrase to use secure prompting instead");
+                    provided
+                }
+                None => {
+                    prompt_for_passphrase_with_confirmation("Enter passphrase for new software keystore: ")?
+                }
+            };
             
             // For software backend, create keystore file
             Keystore::create_keystore(&path, &args.private_key, &passphrase).await?;
             info!("✅ Key '{}' created in software keystore: {}", args.key_name, path);
+            return Ok(());
+        }
+        "file" => {
+            let dir = args.keystore_dir.ok_or_else(|| {
+                anyhow::anyhow!("Keystore directory is required for file backend (use --keystore-dir)")
+            })?;
+            
+            // Get passphrase securely with confirmation (new key creation)
+            let passphrase = match args.passphrase {
+                Some(provided) => {
+                    warn!("⚠️  SECURITY WARNING: Passphrase provided via CLI argument");
+                    warn!("⚠️  This method is less secure as the passphrase may be visible in process lists");
+                    warn!("⚠️  Consider omitting --passphrase to use secure prompting instead");
+                    provided
+                }
+                None => {
+                    prompt_for_passphrase_with_confirmation(&format!("Enter passphrase for new key '{}': ", args.key_name))?
+                }
+            };
+            
+            // For file backend, create key in directory
+            use crate::keystore::FileBackend;
+            FileBackend::create_key(&dir, &args.key_name, &args.private_key, &passphrase).await?;
+            info!("✅ Key '{}' created in file keystore: {}", args.key_name, dir);
             return Ok(());
         }
         "environment" => {
@@ -32,7 +67,7 @@ pub async fn add_key(args: AddKeyArgs) -> Result<()> {
             }
         }
         _ => {
-            return Err(anyhow::anyhow!("Unknown backend: {}", args.backend));
+            return Err(anyhow::anyhow!("Unknown backend: {}. Supported backends: software, file, environment, os_keyring", args.backend));
         }
     };
 
@@ -68,6 +103,18 @@ pub async fn delete_key(args: DeleteKeyArgs) -> Result<()> {
             info!("✅ Software keystore file deleted: {}", path);
             return Ok(());
         }
+        "file" => {
+            let dir = args.keystore_dir.ok_or_else(|| {
+                anyhow::anyhow!("Keystore directory is required for file backend (use --keystore-dir)")
+            })?;
+            
+            // For file backend, delete specific key file
+            use crate::keystore::FileBackend;
+            let backend = FileBackend::new(dir.clone());
+            backend.delete_key(&args.key_name).await?;
+            info!("✅ Key '{}' deleted from file keystore: {}", args.key_name, dir);
+            return Ok(());
+        }
         "environment" => {
             return Err(anyhow::anyhow!("Environment backend does not support key deletion"));
         }
@@ -77,7 +124,7 @@ pub async fn delete_key(args: DeleteKeyArgs) -> Result<()> {
             }
         }
         _ => {
-            return Err(anyhow::anyhow!("Unknown backend: {}", args.backend));
+            return Err(anyhow::anyhow!("Unknown backend: {}. Supported backends: software, file, environment, os_keyring", args.backend));
         }
     };
 
@@ -111,6 +158,34 @@ pub async fn list_keys(args: ListKeysArgs) -> Result<()> {
                 warn!("❌ Software keystore not found: {}", path);
             }
         }
+        "file" => {
+            let dir = args.keystore_dir.ok_or_else(|| {
+                anyhow::anyhow!("Keystore directory is required for file backend (use --keystore-dir)")
+            })?;
+            
+            if std::path::Path::new(&dir).exists() {
+                use crate::keystore::FileBackend;
+                let backend = FileBackend::new(dir.clone());
+                match backend.list_keys() {
+                    Ok(keys) => {
+                        info!("📁 File keystore found: {}", dir);
+                        if keys.is_empty() {
+                            info!("   No keys found in keystore");
+                        } else {
+                            info!("   Keys found:");
+                            for key in keys {
+                                info!("   - {}", key);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("❌ Failed to list keys: {}", e);
+                    }
+                }
+            } else {
+                warn!("❌ File keystore directory not found: {}", dir);
+            }
+        }
         "environment" => {
             info!("🌍 Environment backend - check your environment variables");
             info!("   Keys are stored as environment variables, not managed by this tool");
@@ -128,7 +203,7 @@ pub async fn list_keys(args: ListKeysArgs) -> Result<()> {
             info!("   Service: 'starknet-signer'");
         }
         _ => {
-            return Err(anyhow::anyhow!("Unknown backend: {}", args.backend));
+            return Err(anyhow::anyhow!("Unknown backend: {}. Supported backends: software, file, environment, os_keyring", args.backend));
         }
     }
 

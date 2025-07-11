@@ -9,6 +9,7 @@ use crate::keystore::key_material::KeyMaterial;
 use crate::keystore::encryption::{encrypt_key, decrypt_key, EncryptedKeystore};
 
 /// Software-based keystore backend using encrypted files
+#[derive(Debug)]
 pub struct SoftwareBackend {
     keystore_path: String,
     key_material: Option<KeyMaterial>,

@@ -28,6 +28,7 @@ mod integration_tests {
             keystore: KeystoreConfig {
                 backend: "environment".to_string(),
                 path: None,
+                dir: None,
                 env_var: Some("TEST_PRIVATE_KEY".to_string()),
                 device: None,
                 key_name: None,

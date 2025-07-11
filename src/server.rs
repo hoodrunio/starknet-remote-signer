@@ -378,6 +378,7 @@ mod tests {
             keystore: crate::config::KeystoreConfig {
                 backend: "environment".to_string(),
                 path: None,
+                dir: None,
                 env_var: Some("TEST_PRIVATE_KEY".to_string()),
                 device: None,
                 key_name: None,
@@ -389,8 +390,8 @@ mod tests {
 
         // Set test private key in environment
         std::env::set_var("TEST_PRIVATE_KEY", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
-        let server = Server::new(config).await.unwrap();
-        TestServer::new(server.create_router()).unwrap()
+        let server = Server::new(config).await.expect("Failed to create server");
+        TestServer::new(server.create_router()).expect("Failed to create test server")
     }
 
     #[tokio::test]

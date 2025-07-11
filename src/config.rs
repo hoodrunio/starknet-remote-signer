@@ -4,6 +4,7 @@ use std::fs;
 
 use crate::errors::SignerError;
 use crate::keystore::{Keystore, BackendConfig};
+use crate::utils::get_passphrase_securely;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -19,8 +20,9 @@ pub struct Config {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeystoreConfig {
-    pub backend: String, // "software", "environment", "os_keyring", "hsm"
+    pub backend: String, // "software", "file", "environment", "os_keyring", "hsm"
     pub path: Option<String>, // For software backend
+    pub dir: Option<String>, // For file backend
     pub env_var: Option<String>, // For environment backend
     pub device: Option<String>, // For HSM backend
     // OS keyring specific field
@@ -92,6 +94,7 @@ impl Config {
             keystore: KeystoreConfig {
                 backend: cli.keystore_backend.unwrap_or_else(|| "environment".to_string()),
                 path: cli.keystore_path,
+                dir: cli.keystore_dir,
                 env_var: Some(cli.env_var.unwrap_or_else(|| "SIGNER_PRIVATE_KEY".to_string())),
                 device: None,
                 key_name: cli.key_name,
@@ -139,6 +142,21 @@ impl Config {
                     ));
                 }
             }
+            "file" => {
+                if self.keystore.dir.is_none() {
+                    return Err(SignerError::Config(
+                        "Keystore directory is required for file backend".to_string()
+                    ));
+                }
+                tracing::info!("📁 File backend configured");
+                tracing::info!("🔐 Keys will be stored as encrypted files in directory: '{}'", 
+                    self.keystore.dir.as_ref().unwrap());
+                if let Some(key_name) = &self.keystore.key_name {
+                    tracing::info!("🔑 Will use key: '{}'", key_name);
+                } else {
+                    tracing::info!("🔑 Will use default/first available key");
+                }
+            }
             "environment" => {
                 if self.keystore.env_var.is_none() {
                     return Err(SignerError::Config(
@@ -177,7 +195,7 @@ impl Config {
             }
             _ => {
                 return Err(SignerError::Config(
-                    format!("Unknown keystore backend: {}", self.keystore.backend)
+                    format!("Unknown keystore backend: {}. Supported backends: software, file, environment, os_keyring, hsm", self.keystore.backend)
                 ));
             }
         }
@@ -243,6 +261,20 @@ impl Config {
         Ok(())
     }
 
+    /// Get passphrase securely for keystore operations
+    pub fn get_keystore_passphrase(&self) -> Result<Option<String>, SignerError> {
+        match self.keystore.backend.as_str() {
+            "software" | "file" => {
+                let passphrase = get_passphrase_securely(
+                    self.passphrase.clone(),
+                    "Enter keystore passphrase: "
+                ).map_err(|e| SignerError::Config(format!("Failed to get passphrase: {}", e)))?;
+                Ok(Some(passphrase))
+            }
+            _ => Ok(None), // Other backends don't need passphrase
+        }
+    }
+
     /// Create keystore from configuration
     pub async fn create_keystore(&self) -> Result<Keystore, SignerError> {
         let backend = match self.keystore.backend.as_str() {
@@ -252,6 +284,15 @@ impl Config {
                 })?;
                 BackendConfig::Software {
                     keystore_path: path.clone(),
+                }
+            }
+            "file" => {
+                let dir = self.keystore.dir.as_ref().ok_or_else(|| {
+                    SignerError::Config("Keystore directory not set".to_string())
+                })?;
+                BackendConfig::File {
+                    keystore_dir: dir.clone(),
+                    key_name: self.keystore.key_name.clone(),
                 }
             }
             "environment" => {
@@ -277,7 +318,7 @@ impl Config {
             }
             _ => {
                 return Err(SignerError::Config(
-                    format!("Unknown keystore backend: {}", self.keystore.backend)
+                    format!("Unknown keystore backend: {}. Supported backends: software, file, environment, os_keyring, hsm", self.keystore.backend)
                 ));
             }
         };

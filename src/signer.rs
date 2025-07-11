@@ -203,15 +203,53 @@ mod tests {
 
     #[tokio::test]
     async fn test_signer_creation_and_signing() {
-        use crate::keystore::{Keystore, KeystoreBackend};
+        use crate::keystore::{Keystore, backends::BackendConfig};
         
         let private_key = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
         std::env::set_var("TEST_SIGNER_KEY", private_key);
         
-        let mut keystore = Keystore::new(KeystoreBackend::Environment {
+        let mut keystore = Keystore::new(BackendConfig::Environment {
             var_name: "TEST_SIGNER_KEY".to_string(),
-        });
+        }).unwrap();
         keystore.init(None).await.unwrap();
+        
+        let signer = StarknetSigner::new(keystore).await.unwrap();
+        
+        // Test public key retrieval
+        let public_key = signer.public_key().await.unwrap();
+        assert_ne!(public_key, Felt::ZERO);
+        
+        // Test signing a simple hash
+        let test_hash = felt!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
+        let signature = signer.sign_transaction_hash(test_hash).await.unwrap();
+        
+        // Signature should have two non-zero components
+        assert_ne!(signature[0], Felt::ZERO);
+        assert_ne!(signature[1], Felt::ZERO);
+    }
+
+    #[tokio::test]
+    async fn test_signer_with_file_backend() {
+        use crate::keystore::{Keystore, backends::BackendConfig, FileBackend};
+        use tempfile::TempDir;
+        
+        let temp_dir = TempDir::new().unwrap();
+        let keystore_path = temp_dir.path().to_str().unwrap();
+        let private_key = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        let password = "test_password_123";
+        let key_name = "test_key";
+
+        // Create key in file backend
+        FileBackend::create_key(keystore_path, key_name, private_key, password)
+            .await
+            .unwrap();
+
+        // Load keystore with file backend
+        let mut keystore = Keystore::new(BackendConfig::File {
+            keystore_dir: keystore_path.to_string(),
+            key_name: Some(key_name.to_string()),
+        }).unwrap();
+        keystore.init(Some(password)).await.unwrap();
         
         let signer = StarknetSigner::new(keystore).await.unwrap();
         

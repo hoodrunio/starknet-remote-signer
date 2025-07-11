@@ -6,6 +6,7 @@ use crate::keystore::backends::KeystoreBackend;
 use crate::keystore::key_material::KeyMaterial;
 
 /// Environment variable keystore backend (for development only)
+#[derive(Debug)]
 pub struct EnvironmentBackend {
     var_name: String,
     key_material: Option<KeyMaterial>,

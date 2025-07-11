@@ -17,9 +17,10 @@ pub use key_material::KeyMaterial;
 pub use encryption::EncryptedKeystore;
 
 // Re-export backend implementations
-pub use backends::{SoftwareBackend, EnvironmentBackend, OsKeyringBackend};
+pub use backends::{SoftwareBackend, FileBackend, EnvironmentBackend, OsKeyringBackend};
 
 /// Main keystore for managing validator keys using pluggable backends
+#[derive(Debug)]
 pub struct Keystore {
     backend: Box<dyn KeystoreBackend>,
 }
@@ -30,6 +31,9 @@ impl Keystore {
         let backend: Box<dyn KeystoreBackend> = match config {
             BackendConfig::Software { keystore_path } => {
                 Box::new(SoftwareBackend::new(keystore_path))
+            }
+            BackendConfig::File { keystore_dir, key_name } => {
+                Box::new(FileBackend::new_with_key(keystore_dir, key_name))
             }
             BackendConfig::Environment { var_name } => {
                 Box::new(EnvironmentBackend::new(var_name))

@@ -8,14 +8,18 @@ port = 3000
 
 [tls]
 # Always enable TLS in production
-enabled = true
+enabled = false
 cert_file = "/path/to/certificate.pem"
 key_file = "/path/to/private-key.pem"
 
 [keystore]
 # Use software backend for production (encrypted keystore files)
-backend = "software"
-path = "/secure/path/validator.keystore"
+# backend = "software"
+# path = "/secure/path/validator.keystore"
+
+# Use file backend
+backend = "file"
+dir = "./path/to/keystore"
 
 # For development only - environment backend (NOT recommended for production)
 # backend = "environment"

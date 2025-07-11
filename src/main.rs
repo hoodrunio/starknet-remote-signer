@@ -50,9 +50,10 @@ struct InitArgs {
     #[arg(long)]
     private_key: String,
 
-    /// Passphrase for encryption
+    /// Passphrase for encryption (will be prompted securely if not provided)
+    /// Setting this via CLI argument is NOT recommended for security
     #[arg(long)]
-    passphrase: String,
+    passphrase: Option<String>,
 }
 
 #[tokio::main]
@@ -91,10 +92,15 @@ async fn start_server(args: StartArgs) -> Result<()> {
     info!("Starting Starknet Remote Signer v{}", env!("CARGO_PKG_VERSION"));
 
     // Load configuration
-    let config = Config::load(args)?;
+    let mut config = Config::load(args)?;
     
     // Validate configuration
     config.validate()?;
+    
+    // Get passphrase securely if needed for keystore
+    if let Some(passphrase) = config.get_keystore_passphrase()? {
+        config.passphrase = Some(passphrase);
+    }
 
     // Log configuration details
     info!("📊 Configuration loaded:");
@@ -135,7 +141,7 @@ async fn start_server(args: StartArgs) -> Result<()> {
 
 
 async fn init_keystore(args: InitArgs) -> Result<()> {
-    use starknet_remote_signer::Keystore;
+    use starknet_remote_signer::{Keystore, utils::prompt_for_passphrase_with_confirmation};
     
     // Initialize logging
     let subscriber = tracing_subscriber::fmt()
@@ -146,8 +152,21 @@ async fn init_keystore(args: InitArgs) -> Result<()> {
 
     info!("Creating encrypted keystore at: {}", args.output);
 
+    // Get passphrase securely
+    let passphrase = match args.passphrase {
+        Some(provided_passphrase) => {
+            warn!("⚠️  SECURITY WARNING: Passphrase provided via CLI argument");
+            warn!("⚠️  This method is less secure as the passphrase may be visible in process lists");
+            warn!("⚠️  Consider omitting --passphrase to use secure prompting instead");
+            provided_passphrase
+        }
+        None => {
+            prompt_for_passphrase_with_confirmation("Enter passphrase for new keystore: ")?
+        }
+    };
+
     // Create encrypted keystore
-    Keystore::create_keystore(&args.output, &args.private_key, &args.passphrase).await?;
+    Keystore::create_keystore(&args.output, &args.private_key, &passphrase).await?;
 
     info!("✅ Keystore created successfully!");
     info!("🔑 Public key will be displayed when starting the signer");

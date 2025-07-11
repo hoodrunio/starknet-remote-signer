@@ -6,6 +6,7 @@ use crate::keystore::backends::KeystoreBackend;
 use crate::keystore::key_material::KeyMaterial;
 
 /// OS Keyring backend for secure system-level key storage
+#[derive(Debug)]
 pub struct OsKeyringBackend {
     key_name: String,
     key_material: Option<KeyMaterial>,
