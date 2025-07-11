@@ -14,8 +14,8 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 tokio = { version = "1.0", features = ["full"] }
 
 # Starknet & Crypto
-starknet = "0.15"
-starknet-crypto = "0.7"
+starknet = "0.15.1"
+starknet-crypto = "0.7.4"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
