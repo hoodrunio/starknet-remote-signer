@@ -75,6 +75,7 @@ build_release() {
 create_git_tag() {
     local version=$1
     local tag_name="v$version"
+    local current_branch=$(git branch --show-current)
     
     print_info "Creating git tag $tag_name"
     
@@ -86,7 +87,7 @@ create_git_tag() {
     git tag -a "$tag_name" -m "Release version $version"
     
     print_success "Git tag $tag_name created"
-    print_info "Push with: git push origin main && git push origin $tag_name"
+    print_info "Push with: git push origin $current_branch && git push origin $tag_name"
 }
 
 # Main function
@@ -133,9 +134,10 @@ main() {
     
     echo ""
     print_success "🎉 Release v$new_version prepared!"
+    local current_branch=$(git branch --show-current)
     print_info "Next steps:"
     echo "  1. Review changes: git show"
-    echo "  2. Push to GitHub: git push origin main && git push origin v$new_version"
+    echo "  2. Push to GitHub: git push origin $current_branch && git push origin v$new_version"
     echo "  3. GitHub Actions will automatically create the release"
     echo ""
     print_warning "Note: The GitHub release will be created automatically when you push the tag"
