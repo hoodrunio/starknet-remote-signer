@@ -80,6 +80,10 @@ impl Default for AuditConfig {
 
 impl Config {
     pub fn load(cli: crate::StartArgs) -> Result<Self> {
+        // Save CLI values to check for defaults later
+        let cli_address = cli.address.clone();
+        let cli_port = cli.port;
+        
         // Start with CLI values
         let mut config = Self {
             server: ServerConfig {
@@ -112,7 +116,16 @@ impl Config {
             let file_config: Config = toml::from_str(&config_content)
                 .map_err(|e| SignerError::Config(format!("Failed to parse config file: {}", e)))?;
 
-            // CLI values override config file values  
+            // Config file values override CLI defaults, but explicit CLI args override config file
+            // For server config, use config file values if they match CLI defaults
+            if cli_address == "0.0.0.0" {  // CLI default
+                config.server.address = file_config.server.address;
+            }
+            if cli_port == 3000 {  // CLI default
+                config.server.port = file_config.server.port;
+            }
+
+            // CLI values override config file values for keystore
             if config.keystore.backend == "environment" && file_config.keystore.backend != "environment" {
                 config.keystore = file_config.keystore;
             }
