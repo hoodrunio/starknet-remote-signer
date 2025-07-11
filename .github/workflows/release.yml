@@ -44,7 +44,19 @@ jobs:
 
     - name: Install system dependencies
       if: matrix.os == 'ubuntu-latest'
-      run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config && sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && sudo apt update && sudo apt install gcc-11 g++-11 -y
+      run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config build-essential perl make && sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && sudo apt update && sudo apt install gcc-11 g++-11 -y
+
+    - name: Install macOS dependencies
+      if: matrix.os == 'macos-latest'
+      run: |
+        # Install OpenSSL for both architectures
+        brew install openssl
+        # Install build tools needed for vendored OpenSSL compilation
+        brew install perl make
+        # Set up environment variables for cross-compilation
+        echo "OPENSSL_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
+        echo "OPENSSL_LIB_DIR=$(brew --prefix openssl)/lib" >> $GITHUB_ENV
+        echo "OPENSSL_INCLUDE_DIR=$(brew --prefix openssl)/include" >> $GITHUB_ENV
 
     - name: Install gcc-11
       if: matrix.os == 'ubuntu-latest'
@@ -70,6 +82,11 @@ jobs:
 
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
+      env:
+        # For cross-compilation, disable pkg-config to avoid conflicts
+        PKG_CONFIG_ALLOW_CROSS: 1
+        # For macOS cross-compilation, use the OpenSSL from Homebrew
+        OPENSSL_STATIC: 1
 
     - name: Create archive
       shell: bash
