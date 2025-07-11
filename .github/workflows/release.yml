@@ -52,24 +52,23 @@ jobs:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          starknet-remote-signer/target
+          target
         key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Build
-      working-directory: ./starknet-remote-signer
       run: cargo build --release --target ${{ matrix.target }}
 
     - name: Create archive
       shell: bash
       run: |
-        cd starknet-remote-signer/target/${{ matrix.target }}/release
-        tar czf ../../../starknet-remote-signer-${{ matrix.target }}.tar.gz starknet-remote-signer
+        cd target/${{ matrix.target }}/release
+        tar czf ../../starknet-remote-signer-${{ matrix.target }}.tar.gz starknet-remote-signer
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: starknet-remote-signer-${{ matrix.target }}
-        path: starknet-remote-signer/starknet-remote-signer-${{ matrix.target }}.tar.gz
+        path: target/starknet-remote-signer-${{ matrix.target }}.tar.gz
 
   docker:
     name: Build Docker Image
@@ -99,7 +98,7 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./starknet-remote-signer
+        context: .
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -114,7 +113,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
