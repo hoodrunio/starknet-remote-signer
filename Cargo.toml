@@ -54,15 +54,14 @@ tokio-rustls = "0.26"
 rustls-pemfile = "2.0"
 axum-server = { version = "0.7", features = ["tls-rustls"] }
 
-# OS Keyring support
-keyring = { version = "3.6.2", features = ["apple-native"] }
+# OS Keyring support - Cross-platform secure credential storage
+# apple-native: macOS/iOS Keychain
+# linux-native-sync-persistent: Linux keyutils + Secret Service combo (best Linux option)
+# windows-native: Windows Credential Manager
+# crypto-rust: Crypto support for Secret Service (avoids OpenSSL dependency)
+keyring = { version = "3.6.2", features = ["apple-native", "linux-native-sync-persistent", "crypto-rust"] }
 
-# Platform-specific keyring implementations
-[target.'cfg(target_os = "linux")'.dependencies]
-secret-service = "3.0"
-
-[target.'cfg(target_os = "macos")'.dependencies]
-security-framework = "2.9"
+# Platform-specific keyring implementations are now handled by keyring crate features
 
 [dev-dependencies]
 axum-test = "17.3"
