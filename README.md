@@ -1,294 +1,137 @@
 # Starknet Remote Signer
 
-A secure, lightweight remote signing service for Starknet transactions. Inspired by [TMKMS](https://github.com/tomtau/tmkms-light) but simplified and focused on security and stability.
+A secure remote signing service for Starknet validators.
 
-## 🔐 Security Features
+## Quick Start
 
-- **Encrypted key storage**: Private keys encrypted at rest using AES-256-GCM
-- **PBKDF2 key derivation**: Strong key derivation with 100,000 iterations
-- **Secure memory handling**: Keys zeroized on drop, no plaintext storage
-- **Multiple backends**: Software (encrypted), Environment, HSM (planned)
+### 1. Add a Key
 
-- **HTTPS support**: TLS encryption for secure communications (planned)
-- **Non-root execution**: Runs as unprivileged user in containers
-- **Input validation**: Comprehensive validation of all inputs
-
-## 🚀 Quick Start
-
-### Method 1: Using Environment Variables (Development)
+Choose one of the keystore backends:
 
 ```bash
-# Set your private key (without 0x prefix)
-export SIGNER_PRIVATE_KEY="your_private_key_here"
+# File backend (Recommended)
+starknet-remote-signer keys add my-key --backend file --keystore-dir ./keystore --private-key YOUR_PRIVATE_KEY
 
-# Start the service
-docker-compose up -d
+# OS keyring
+starknet-remote-signer keys add my-key --private-key YOUR_PRIVATE_KEY
+
+# Software keystore
+starknet-remote-signer keys add my-key \
+  --backend software \
+  --keystore-path my-key.keystore \
+  --private-key YOUR_PRIVATE_KEY
 ```
 
-### Method 2: Using Encrypted Keystore (Production)
+### 2. Start the Signer
 
 ```bash
-# 1. Create encrypted keystore
-./target/release/starknet-remote-signer init \
-  --output keystore.json \
-  --private-key "your_private_key_here" \
-  --passphrase "your_secure_passphrase"
+# Using config file
+starknet-remote-signer start --config config.toml
 
-# 2. Start with encrypted keystore
-./target/release/starknet-remote-signer start \
-  --keystore-backend software \
-  --keystore-path keystore.json \
-  --passphrase "your_secure_passphrase"
+# Using CLI
+starknet-remote-signer start --keystore-backend file --keystore-dir ./keystore
 ```
 
-### Building from Source
+## Key Management
 
+### Add Keys
 ```bash
-cargo build --release
+# File backend
+starknet-remote-signer keys add validator --backend file --keystore-dir ./keystore
+
+# OS keyring
+starknet-remote-signer keys add validator --private-key PRIVATE_KEY
+
+# Software keystore
+starknet-remote-signer keys add validator \
+  --backend software \
+  --keystore-path validator.keystore \
+  --private-key PRIVATE_KEY
 ```
 
-## 📡 API Endpoints
-
-### Health Check
+### List Keys
 ```bash
-GET /health
-```
-Returns server status and public key.
+# File backend
+starknet-remote-signer keys list --backend file --keystore-dir ./keystore
 
-### Get Public Key
+# OS keyring
+starknet-remote-signer keys list
+
+# Software keystore
+starknet-remote-signer keys list --backend software --keystore-path validator.keystore
+```
+
+### Delete Keys
 ```bash
-GET /get_public_key
-```
-Returns the public key of the signer.
-
-### Sign Transaction
-```bash
-POST /sign
-Content-Type: application/json
-
-{
-    "transaction": {
-        "type": "INVOKE",
-        "sender_address": "0x...",
-        "calldata": ["0x1", "0x..."],
-        "version": "0x3",
-        "signature": [],
-        "nonce": "0xbf",
-        "resource_bounds": {
-            "l1_gas": {
-                "max_amount": "0x0",
-                "max_price_per_unit": "0x49f83fa3027b"
-            },
-            "l1_data_gas": {
-                "max_amount": "0x600",
-                "max_price_per_unit": "0x3948c"
-            },
-            "l2_gas": {
-                "max_amount": "0x1142700",
-                "max_price_per_unit": "0x33a8f57f9"
-            }
-        },
-        "tip": "0x0",
-        "paymaster_data": [],
-        "account_deployment_data": [],
-        "nonce_data_availability_mode": "L1",
-        "fee_data_availability_mode": "L1"
-    },
-    "chain_id": "0x534e5f5345504f4c4941"
-}
+starknet-remote-signer keys delete validator --confirm
 ```
 
-### Metrics
-```bash
-GET /metrics
-```
-Returns operational metrics for monitoring.
+## Configuration
 
-## ⚙️ Configuration
-
-### Command Line Options
-
-```bash
-# Get help for all commands
-starknet-remote-signer --help
-
-# Initialize keystore
-starknet-remote-signer init --help
-
-# Start server
-starknet-remote-signer start --help
-```
-
-#### Start Command Options
-
-| Option | Environment Variable | Description | Required |
-|--------|---------------------|-------------|----------|
-| `--keystore-backend` | `SIGNER_KEYSTORE_BACKEND` | Backend: "software", "environment", "hsm" | ❌ (default: environment) |
-| `--keystore-path` | `SIGNER_KEYSTORE_PATH` | Path to encrypted keystore file | ✅ (for software) |
-| `--env-var` | `SIGNER_ENV_VAR` | Environment variable for private key | ❌ (default: SIGNER_PRIVATE_KEY) |
-| `--passphrase` | `SIGNER_PASSPHRASE` | Passphrase for encrypted keystore | ✅ (for software) |
-| `--address` | `SIGNER_ADDRESS` | Bind address | ❌ (default: 127.0.0.1) |
-| `--port` | `SIGNER_PORT` | Bind port | ❌ (default: 3000) |
-
-| `--config` | `SIGNER_CONFIG` | Config file path | ❌ |
-| `--tls` | `SIGNER_TLS` | Enable TLS | ❌ |
-| `--tls-cert` | `SIGNER_TLS_CERT` | TLS certificate file | ❌ |
-| `--tls-key` | `SIGNER_TLS_KEY` | TLS private key file | ❌ |
-
-#### Init Command Options
-
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--output` | Output path for encrypted keystore | ✅ |
-| `--private-key` | Private key to encrypt (hex, without 0x) | ✅ |
-| `--passphrase` | Passphrase for encryption | ✅ |
-
-### Configuration File
-
-Create a TOML configuration file:
+Create a `config.toml` file:
 
 ```toml
 [server]
-address = "0.0.0.0"
+address = "127.0.0.1"
 port = 3000
 
+[keystore]
+backend = "file"  # or "os_keyring", "software", "environment"
+dir = "./keystore"  # for file backend
+key_name = "validator"  # optional: specify which key to use
+
+[security]
+allowed_chain_ids = ["SN_MAIN"]
+allowed_ips = ["10.0.0.1", "10.0.0.2"]
+
 [tls]
-enabled = false
+enabled = true
 cert_file = "/path/to/cert.pem"
 key_file = "/path/to/key.pem"
 
-[keystore]
-backend = "software"  # "software", "environment", "hsm"
-path = "/path/to/keystore.json"  # For software backend
-env_var = "SIGNER_PRIVATE_KEY"   # For environment backend
-
-
-passphrase = "your_keystore_passphrase"  # For software backend
+[audit]
+enabled = true
+log_path = "./logs/audit.log"
 ```
 
-## 🔒 Security Best Practices
+## Keystore Backends
 
-### Production Deployment
+### File Backend (Recommended)
+- Stores encrypted keys in a directory
+- Supports multiple keys
+- Password-protected encryption
+- Similar to Cosmos SDK file keyring
 
-1. **Always use HTTPS** in production (TLS support coming soon)
+### OS Keyring
+- Uses system keyring (Linux/macOS)
+- Automatic OS-level encryption
+- User session integration
 
-3. **Run behind a reverse proxy** (nginx, traefik)
-4. **Use a firewall** to restrict access
-5. **Monitor logs** for suspicious activity
-6. **Regular security updates**
+### Software
+- Single encrypted keystore file
+- Passphrase protection
+- Good for simple setups
 
-### Private Key Management
+### Environment (Development Only)
+- Private key in environment variable
+- Not secure for production
 
-- **Never commit private keys** to version control
-- **Use environment variables** or secure configuration management
-- **Rotate keys regularly**
-- **Use hardware security modules** for high-value deployments
+## API Endpoints
 
-### Example Production Setup
+- `GET /health` - Health check
+- `GET /get_public_key` - Get public key
+- `POST /sign` - Sign transaction
+- `GET /metrics` - Prometheus metrics
 
-```yaml
-# docker-compose.prod.yml
-version: '3.8'
-services:
-  starknet-remote-signer:
-    build: .
-    environment:
-      - SIGNER_PRIVATE_KEY=${SIGNER_PRIVATE_KEY}
-      - SIGNER_ADDRESS=0.0.0.0
-      - RUST_LOG=info
-    ports:
-      - "127.0.0.1:3000:3000"  # Only bind to localhost
-    restart: unless-stopped
-    read_only: true
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-```
+## Security Notes
 
-## 📊 Monitoring
+⚠️ **Production Requirements:**
+- Use file, software, or OS keyring backends (never environment)
+- Configure IP allowlists
+- Configure chain ID restrictions
+- Enable TLS
+- Enable audit logging
 
-The service provides metrics at `/metrics` endpoint:
+## License
 
-- `sign_requests`: Total number of signing requests
-- `sign_errors`: Total number of signing errors  
-- `health_checks`: Total number of health check requests
-
-### Prometheus Configuration
-
-```yaml
-# prometheus.yml
-global:
-  scrape_interval: 15s
-
-scrape_configs:
-  - job_name: 'starknet-remote-signer'
-    static_configs:
-      - targets: ['starknet-remote-signer:3000']
-    metrics_path: '/metrics'
-```
-
-## 🛠️ Development
-
-### Building
-
-```bash
-# Debug build
-cargo build
-
-# Release build
-cargo build --release
-
-# Run tests
-cargo test
-```
-
-### Testing
-
-```bash
-# Unit tests
-cargo test
-
-# Integration tests
-cargo test --test integration
-
-# With logging
-RUST_LOG=debug cargo test
-```
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-**"Private key is required"**
-- Set `SIGNER_PRIVATE_KEY` environment variable
-- Or use `--private-key` command line option
-
-
-
-**"Failed to bind to address"**
-- Port might be in use by another process
-- Try a different port with `--port` option
-- Check firewall settings
-
-### Debug Mode
-
-```bash
-RUST_LOG=debug ./target/release/starknet-remote-signer --private-key "..."
-```
-
-## 📄 License
-
-Licensed under the Apache License, Version 2.0 ([LICENSE](LICENSE) or http://www.apache.org/licenses/LICENSE-2.0)
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
-
-## ⚠️ Disclaimer
-
-This software is provided "as is" without warranty. Use at your own risk, especially in production environments. Always follow security best practices when handling private keys and cryptographic operations. 
+Apache 2.0 

@@ -1,7 +1,7 @@
 # Build outputs
 /target/
 **/*.rs.bk
-Cargo.lock
+!Cargo.lock
 
 # IDE files
 .vscode/
@@ -38,7 +38,7 @@ certs/
 logs/
 
 # Docker
-.dockerignore
+!.dockerignore
 docker-compose.override.yml
 
 # Test coverage
@@ -57,5 +57,5 @@ private_key*
 secret_key*
 # Allow keystore.rs source code (contains no actual keys)
 !keystore.rs 
-!production.toml
+!config.toml
 test_key_management.sh

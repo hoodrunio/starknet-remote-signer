@@ -1,0 +1,64 @@
+NOTICE - SECURITY DISCLAIMER
+
+StarkNet Remote Signer
+======================
+
+This software is provided "AS IS" without warranty of any kind. Use at your own risk.
+
+AUDIT STATUS
+------------
+This project has NOT been professionally audited for security vulnerabilities.
+The code may contain critical security flaws that could result in:
+- Loss of funds
+- Unauthorized access to private keys
+- Compromise of validator operations
+- Network security breaches
+
+RISK ACKNOWLEDGMENT
+------------------
+By using this software, you acknowledge and accept that:
+
+1. You are solely responsible for securing your private keys and validator operations
+2. The authors and contributors are not liable for any losses or damages
+3. You should conduct your own security audit before production use
+4. This software handles cryptographic keys and sensitive operations
+5. Improper configuration may lead to security vulnerabilities
+
+VALIDATOR SECURITY
+-----------------
+Running a validator involves significant responsibility:
+- Protect private keys at all costs
+- Use hardware security modules when possible
+- Implement network security measures
+- Monitor for suspicious activities
+- Follow Starknet security best practices
+
+REPORTING VULNERABILITIES
+------------------------
+If you discover security vulnerabilities:
+- Do NOT disclose publicly
+- Report confidentially to project maintainers
+- Allow reasonable time for fixes
+- Coordinate responsible disclosure
+
+LEGAL DISCLAIMER
+---------------
+This software is distributed under the Apache 2.0 License.
+See LICENSE file for full terms and conditions.
+
+The authors, contributors, and distributors of this software:
+- Make no warranties about security or fitness for purpose
+- Are not responsible for any financial losses
+- Are not liable for any damages or consequences
+- Do not guarantee the software is bug-free or secure
+
+USE AT YOUR OWN RISK
+===================
+
+By proceeding with this software, you confirm that you:
+- Understand the security implications
+- Accept full responsibility for any consequences
+- Will not hold the authors liable for any issues
+- Have the technical expertise to use this safely
+
+Last Updated: July 2025 

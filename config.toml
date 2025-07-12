@@ -1,0 +1,60 @@
+# Starknet Remote Signer Configuration
+# This file contains secure defaults and best practices
+
+[server]
+# Bind to localhost only for security (use reverse proxy for external access)
+address = "127.0.0.1"
+port = 3000
+
+[tls]
+# Always enable TLS in production
+enabled = false
+cert_file = "/path/to/certificate.pem"
+key_file = "/path/to/private-key.pem"
+
+[keystore]
+# Use software backend
+# backend = "software"
+# path = "/secure/path/validator.keystore"
+
+# Use file backend
+backend = "file"
+dir = "./keystore"
+
+# For development only - environment backend (NOT recommended for production)
+# backend = "environment"
+# env_var = "VALIDATOR_PRIVATE_KEY"
+
+# OS keyring backend - secure system-level storage (Linux/macOS only)
+# First add your key: starknet-remote-signer keys add validator --private-key YOUR_KEY
+# backend = "os_keyring"
+# key_name = "validator"  # The key you added
+
+[security]
+# CRITICAL: Always configure these allowlists for production
+# Empty allowlists allow ALL IPs and chains - extremely dangerous
+
+# Only allow specific chain IDs
+allowed_chain_ids = ["SN_MAIN"]  # Mainnet only
+# allowed_chain_ids = ["SN_SEPOLIA"]  # Testnet only
+# allowed_chain_ids = ["SN_MAIN", "SN_SEPOLIA"]  # Both mainnet and testnet
+
+# Only allow specific IP addresses
+allowed_ips = [
+    "10.0.0.1",        # Validator node 1
+    "10.0.0.2",        # Validator node 2
+    "192.168.1.100",   # Management server
+]
+
+[audit]
+# Enable comprehensive audit logging
+enabled = true
+log_path = "/var/log/starknet-signer/audit.log"
+rotate_daily = true
+
+[logging]
+level = "info"  # Info level is sufficient for production
+
+[metrics]
+enabled = true
+port = 9090  # Prometheus metrics port

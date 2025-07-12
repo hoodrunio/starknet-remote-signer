@@ -1,17 +1,22 @@
 #[cfg(test)]
 mod integration_tests {
+    use crate::config::{AuditConfig, KeystoreConfig, SecurityConfig, ServerConfig, TlsConfig};
+    use crate::{Config, Server};
+    use axum::extract::connect_info::MockConnectInfo;
     use axum_test::TestServer;
     use serde_json::json;
-    use starknet::macros::felt;
     use starknet::core::types::{
         BroadcastedInvokeTransactionV3, DataAvailabilityMode, ResourceBounds, ResourceBoundsMapping,
     };
-    use crate::{Config, Server};
-    use crate::config::{ServerConfig, TlsConfig, KeystoreConfig};
+    use starknet::macros::felt;
+    use std::net::SocketAddr;
 
     async fn create_test_server() -> TestServer {
         // Set test private key in environment
-        std::env::set_var("TEST_PRIVATE_KEY", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
+        std::env::set_var(
+            "TEST_PRIVATE_KEY",
+            "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        );
 
         let config = Config {
             server: ServerConfig {
@@ -26,15 +31,31 @@ mod integration_tests {
             keystore: KeystoreConfig {
                 backend: "environment".to_string(),
                 path: None,
+                dir: None,
                 env_var: Some("TEST_PRIVATE_KEY".to_string()),
                 device: None,
+                key_name: None,
             },
-
             passphrase: None,
+            security: SecurityConfig {
+                allowed_chain_ids: vec![], // Allow all chains in tests
+                allowed_ips: vec![],       // Allow all IPs in tests
+            },
+            audit: AuditConfig {
+                enabled: false,                              // Disable audit logging in tests
+                log_path: "/tmp/test-audit.log".to_string(), // Temporary path for tests
+                rotate_daily: false,
+            },
         };
 
         let server = Server::new(config).await.unwrap();
-        TestServer::new(server.create_router()).unwrap()
+
+        // Add MockConnectInfo layer to provide SocketAddr in tests
+        let app = server
+            .create_router()
+            .layer(MockConnectInfo(SocketAddr::from(([127, 0, 0, 1], 8080))));
+
+        TestServer::new(app).unwrap()
     }
 
     #[tokio::test]
@@ -80,20 +101,17 @@ mod integration_tests {
         });
 
         // Send request exactly like starknet-attestation does
-        let response = server
-            .post("/sign")
-            .json(&request_body)
-            .await;
+        let response = server.post("/sign").json(&request_body).await;
 
         assert_eq!(response.status_code(), 200);
 
         let response_json: serde_json::Value = response.json();
-        
+
         // Check response format matches what starknet-attestation expects
         assert!(response_json.get("signature").is_some());
         let signature = response_json["signature"].as_array().unwrap();
         assert_eq!(signature.len(), 2); // Should have r and s components
-        
+
         // Signatures should be valid hex strings
         for component in signature {
             let sig_str = component.as_str().unwrap();
@@ -102,7 +120,10 @@ mod integration_tests {
         }
 
         println!("✅ starknet-attestation compatibility test passed!");
-        println!("Response: {}", serde_json::to_string_pretty(&response_json).unwrap());
+        println!(
+            "Response: {}",
+            serde_json::to_string_pretty(&response_json).unwrap()
+        );
     }
 
     #[tokio::test]
@@ -150,10 +171,7 @@ mod integration_tests {
             "chain_id": "0x534e5f5345504f4c4941"
         });
 
-        let response = server
-            .post("/sign")
-            .json(&request)
-            .await;
+        let response = server.post("/sign").json(&request).await;
 
         assert_eq!(response.status_code(), 200);
 
@@ -189,4 +207,4 @@ mod integration_tests {
 
         println!("✅ Public key test passed!");
     }
-} 
+}
