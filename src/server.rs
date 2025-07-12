@@ -84,7 +84,7 @@ fn is_transaction_in_preparation_phase(transaction: &BroadcastedInvokeTransactio
     if transaction.is_query {
         return true;
     }
-    
+
     // Check 2: Nethermind attestation uses default resource bounds (all zeros) for preparation
     transaction.resource_bounds.l1_gas.max_amount == 0
         && transaction.resource_bounds.l1_gas.max_price_per_unit == 0
