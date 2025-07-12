@@ -1,5 +1,8 @@
 use clap::Parser;
 
+pub mod commands;
+pub use commands::dispatch_commands;
+
 #[derive(Parser)]
 #[command(name = "starknet-remote-signer")]
 #[command(about = "A secure remote signing service for Starknet validators")]

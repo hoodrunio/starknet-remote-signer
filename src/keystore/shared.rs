@@ -53,4 +53,4 @@ impl SharedKeystore {
         let keystore = self.inner.lock().await;
         keystore.delete_key().await
     }
-} 
+}

@@ -7,7 +7,9 @@ use crate::keystore::backends::{BackendConfig, KeystoreBackend};
 use crate::keystore::key_material::KeyMaterial;
 
 // Re-export backend implementations
-use crate::keystore::backends::{EnvironmentBackend, FileBackend, OsKeyringBackend, SoftwareBackend};
+use crate::keystore::backends::{
+    EnvironmentBackend, FileBackend, OsKeyringBackend, SoftwareBackend,
+};
 
 /// Main keystore for managing validator keys using pluggable backends
 #[derive(Debug)]
@@ -103,4 +105,4 @@ impl Keystore {
         info!("Deleting key from {} backend", self.backend.backend_type());
         self.backend.delete_key().await
     }
-} 
+}

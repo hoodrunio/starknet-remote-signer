@@ -48,4 +48,4 @@ fn test_empty_allows_all() {
 
     // Should allow any IP
     assert!(validator.validate_ip(&"1.2.3.4".parse().unwrap()).is_ok());
-} 
+}
