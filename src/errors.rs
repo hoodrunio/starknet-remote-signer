@@ -28,6 +28,15 @@ pub enum SignerError {
 
     #[error("Transaction validation failed: {0}")]
     ValidationFailed(String),
+
+    #[error("Security error: {0}")]
+    Security(String),
+
+    #[error("Validation error: {0}")]
+    Validation(String),
+
+    #[error("Signing error: {0}")]
+    Signing(String),
 }
 
 impl From<anyhow::Error> for SignerError {

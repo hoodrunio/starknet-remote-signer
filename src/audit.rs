@@ -153,4 +153,4 @@ impl AuditLogger {
 }
 
 // Re-export for use in server
-pub use crate::server::SignRequest;
+pub use crate::handlers::SignRequest;

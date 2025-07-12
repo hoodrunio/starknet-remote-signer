@@ -3,60 +3,8 @@ use clap::Parser;
 use tracing::{info, warn};
 
 use starknet_remote_signer::{
-    key_management, AddKeyArgs, Config, DeleteKeyArgs, ListKeysArgs, Server, StartArgs,
+    key_management, Cli, Commands, Config, InitArgs, KeysCommands, Server, StartArgs,
 };
-
-#[derive(Parser)]
-#[command(name = "starknet-remote-signer")]
-#[command(about = "A secure remote signing service for Starknet validators")]
-#[command(version)]
-struct Cli {
-    #[command(subcommand)]
-    command: Option<Commands>,
-
-    /// When no subcommand is provided, these args are used for 'start'
-    #[command(flatten)]
-    start_args: StartArgs,
-}
-
-#[derive(Parser)]
-enum Commands {
-    /// Start the remote signer server
-    Start(StartArgs),
-    /// Initialize and create encrypted keystore file
-    Init(InitArgs),
-    /// Key management commands
-    Keys {
-        #[command(subcommand)]
-        command: KeysCommands,
-    },
-}
-
-#[derive(Parser)]
-enum KeysCommands {
-    /// Add a new key to keystore
-    Add(AddKeyArgs),
-    /// Delete a key from keystore  
-    Delete(DeleteKeyArgs),
-    /// List all keys in keystore
-    List(ListKeysArgs),
-}
-
-#[derive(Parser)]
-struct InitArgs {
-    /// Output path for encrypted keystore
-    #[arg(short, long)]
-    output: String,
-
-    /// Private key to encrypt (hex, without 0x prefix)
-    #[arg(long)]
-    private_key: String,
-
-    /// Passphrase for encryption (will be prompted securely if not provided)
-    /// Setting this via CLI argument is NOT recommended for security
-    #[arg(long)]
-    passphrase: Option<String>,
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
