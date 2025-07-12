@@ -111,13 +111,13 @@ The script does the following:
 
 ```bash
 # 1. Update version in Cargo.toml
-sed -i 's/version = "0.1.0"/version = "0.1.1"/' starknet-remote-signer/Cargo.toml
+sed -i 's/version = "0.1.0"/version = "0.1.1"/' Cargo.toml
 
 # 2. Test
-cd starknet-remote-signer && cargo test && cd ..
+cargo test
 
 # 3. Commit and tag
-git add starknet-remote-signer/Cargo.toml
+git add Cargo.toml
 git commit -m "Release v0.1.1"
 git tag -a v0.1.1 -m "Release version 0.1.1"
 ```
