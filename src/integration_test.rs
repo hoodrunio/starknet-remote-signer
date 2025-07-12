@@ -73,7 +73,7 @@ mod integration_tests {
         let calldata = vec![
             "0x1".to_string(),                                           // call array length
             format!("{:#x}", sepolia::STARKNET_ATTESTATION_CONTRACT),    // attestation contract
-            format!("{:#x}", get_selector_from_name("attest").unwrap()), // attest selector
+            format!("{:#x}", get_selector_from_name("attest").expect("attest selector should be valid")), // attest selector
             "0x1".to_string(),                                           // calldata length
             "0x614f596b9d8eafbc87a48ff3a2a4bd503762d3f4be7c91cdeb766cf869c2233".to_string(), // block hash
         ];
@@ -148,7 +148,7 @@ mod integration_tests {
             calldata: vec![
                 felt!("0x1"),                              // call array length
                 sepolia::STARKNET_ATTESTATION_CONTRACT,    // attestation contract
-                get_selector_from_name("attest").unwrap(), // attest selector
+                get_selector_from_name("attest").expect("attest selector should be valid"), // attest selector
                 felt!("0x1"),                              // calldata length
                 felt!("0x614f596b9d8eafbc87a48ff3a2a4bd503762d3f4be7c91cdeb766cf869c2233"), // block hash
             ],

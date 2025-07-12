@@ -115,7 +115,8 @@ impl AttestationValidator {
         debug!("Validating attestation transaction pattern");
 
         // Get the "attest" function selector
-        let attest_selector = get_selector_from_name("attest").unwrap();
+        let attest_selector = get_selector_from_name("attest")
+            .map_err(|e| SignerError::ValidationFailed(format!("Selector lookup failed: {}", e)))?;
 
         // Extract calldata pattern
         let calldata = &transaction.calldata;
