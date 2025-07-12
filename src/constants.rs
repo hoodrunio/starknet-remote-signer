@@ -30,8 +30,9 @@ pub mod sepolia {
     /// Both tools use slightly different addresses
     pub const STARKNET_ATTESTATION_CONTRACT: Felt =
         felt!("0x3f32e152b9637c31bfcf73e434f78591067a01ba070505ff6ee195642c9acfb");
-    pub const STARKNET_STAKING_V2_CONTRACT: Felt =
+    pub const STARKNET_STAKING_LZ_CONTRACT: Felt =
         felt!("0x03f32e152b9637c31bfcf73e434f78591067a01ba070505ff6ee195642c9acfb");
+    // leading zero is intentional
 }
 
 /// Function selector constants

@@ -50,7 +50,7 @@ impl AttestationValidator {
                 staking_contract: sepolia::STAKING_CONTRACT,
                 attestation_contracts: vec![
                     sepolia::STARKNET_ATTESTATION_CONTRACT,
-                    sepolia::STARKNET_STAKING_V2_CONTRACT,
+                    sepolia::STARKNET_STAKING_LZ_CONTRACT,
                 ],
             })
         } else {
@@ -311,14 +311,14 @@ mod tests {
     }
 
     #[test]
-    fn test_valid_sepolia_attestation_starknet_staking_v2() {
+    fn test_valid_sepolia_attestation_starknet_staking_lz() {
         let validator = AttestationValidator::with_chain_detection(felt!("0x534e5f5345504f4c4941"));
 
         let tx = BroadcastedInvokeTransactionV3 {
             sender_address: felt!("0x123"),
             calldata: vec![
                 felt!("0x1"), // call array length
-                felt!("0x03f32e152b9637c31bfcf73e434f78591067a01ba070505ff6ee195642c9acfb"), // starknet-staking-v2 contract
+                felt!("0x03f32e152b9637c31bfcf73e434f78591067a01ba070505ff6ee195642c9acfb"), // starknet attestation contract
                 get_selector_from_name("attest").unwrap(), // attest selector
                 felt!("0x1"),                              // calldata length
                 felt!("0x614f596b9d8eafbc87a48ff3a2a4bd503762d3f4be7c91cdeb766cf869c2233"), // block hash
