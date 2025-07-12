@@ -15,7 +15,7 @@ mod tests {
                 felt!("0x1"), // call array length
                 felt!("0x3f32e152b9637c31bfcf73e434f78591067a01ba070505ff6ee195642c9acfb"), // starknet-attestation contract
                 get_selector_from_name("attest").expect("attest selector should be valid"), // attest selector
-                felt!("0x1"),                              // calldata length
+                felt!("0x1"), // calldata length
                 felt!("0x614f596b9d8eafbc87a48ff3a2a4bd503762d3f4be7c91cdeb766cf869c2233"), // block hash
             ],
             signature: vec![],
@@ -56,7 +56,7 @@ mod tests {
                 felt!("0x1"), // call array length
                 felt!("0x03f32e152b9637c31bfcf73e434f78591067a01ba070505ff6ee195642c9acfb"), // starknet attestation contract
                 get_selector_from_name("attest").expect("attest selector should be valid"), // attest selector
-                felt!("0x1"),                              // calldata length
+                felt!("0x1"), // calldata length
                 felt!("0x614f596b9d8eafbc87a48ff3a2a4bd503762d3f4be7c91cdeb766cf869c2233"), // block hash
             ],
             signature: vec![],
