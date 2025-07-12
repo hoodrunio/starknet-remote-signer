@@ -77,10 +77,15 @@ pub struct MetricsResponse {
     pub health_checks: u64,
 }
 
-/// Check if a transaction has default resource bounds (all zeros)
-/// This indicates it's in the prepare phase, not the invoke phase
-fn is_transaction_in_prepare_phase(transaction: &BroadcastedInvokeTransactionV3) -> bool {
-    // Default resource bounds from attestation tool have all values as 0
+/// Check if a transaction is in preparation/estimation phase vs actual invoke phase
+/// This handles both Go tool (resource bounds check) and Rust tool (is_query check)
+fn is_transaction_in_preparation_phase(transaction: &BroadcastedInvokeTransactionV3) -> bool {
+    // Check 1: eqlabs attestation uses is_query field for fee estimation
+    if transaction.is_query {
+        return true;
+    }
+    
+    // Check 2: Nethermind attestation uses default resource bounds (all zeros) for preparation
     transaction.resource_bounds.l1_gas.max_amount == 0
         && transaction.resource_bounds.l1_gas.max_price_per_unit == 0
         && transaction.resource_bounds.l1_data_gas.max_amount == 0
@@ -286,16 +291,16 @@ async fn sign_transaction(
     }
 
     // Determine if this is a prepare phase or invoke phase
-    let is_prepare_phase = is_transaction_in_prepare_phase(&request.transaction);
+    let is_prepare_phase = is_transaction_in_preparation_phase(&request.transaction);
 
     if is_prepare_phase {
         info!(
-            "Signing request from {} for sender: 0x{:x}, chain_id: 0x{:x} [PREPARE PHASE]",
+            "Signing request from {} for sender: 0x{:x}, chain_id: 0x{:x} [PREPARATION PHASE]",
             real_ip, request.transaction.sender_address, request.chain_id
         );
     } else {
         info!(
-            "Signing request from {} for sender: 0x{:x}, chain_id: 0x{:x} [INVOKE PHASE]",
+            "Signing request from {} for sender: 0x{:x}, chain_id: 0x{:x} [EXECUTION PHASE]",
             real_ip, request.transaction.sender_address, request.chain_id
         );
     }
@@ -341,13 +346,13 @@ async fn sign_transaction(
 
             if is_prepare_phase {
                 info!(
-                    "Transaction prepared successfully for {} (tx_hash: 0x{:x}) - NOT BROADCASTED",
-                    real_ip, tx_hash
+                    "Transaction prepared successfully (tx_hash: 0x{:x}) - Preparation phase complete",
+                    tx_hash
                 );
             } else {
                 info!(
-                    "Transaction signed successfully for {} (tx_hash: 0x{:x}) - WILL BE BROADCASTED",
-                    real_ip, tx_hash
+                    "Transaction signed successfully (tx_hash: 0x{:x}) - Ready for broadcast",
+                    tx_hash
                 );
             }
             Ok(Json(SignResponse { signature }))
