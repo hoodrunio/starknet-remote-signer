@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker image builds and publishing
 - Release automation script
 
-## [0.1.0] - 2024-XX-XX
+## [0.1.1] - 2025-12-07
 
 ### Added
 - Initial implementation of Starknet remote signer
