@@ -9,6 +9,7 @@ use crate::errors::SignerError;
 use crate::keystore::backends::{BackendUtils, KeystoreBackend};
 use crate::keystore::encryption::{decrypt_key, encrypt_key};
 use crate::keystore::key_material::KeyMaterial;
+use crate::utils::SecureString;
 
 /// File-based keystore backend using encrypted directory storage
 /// Similar to Cosmos-SDK file keyring backend
@@ -16,7 +17,7 @@ use crate::keystore::key_material::KeyMaterial;
 pub struct FileBackend {
     keystore_dir: PathBuf,
     selected_key_name: Option<String>,
-    password: Option<String>,
+    password: Option<SecureString>,
     keys: HashMap<String, KeyMaterial>,
 }
 
@@ -114,7 +115,7 @@ impl FileBackend {
     }
 
     /// Load keys from the keystore directory (only selected key if specified, otherwise all)
-    fn load_keys(&mut self, password: &str) -> Result<(), SignerError> {
+    fn load_keys(&mut self, password: &SecureString) -> Result<(), SignerError> {
         let metadata = self.load_metadata()?;
 
         if let Some(selected_key) = &self.selected_key_name {
@@ -160,14 +161,17 @@ impl FileBackend {
     fn load_key_from_file(
         &self,
         key_name: &str,
-        password: &str,
+        password: &SecureString,
     ) -> Result<KeyMaterial, SignerError> {
         let key_path = self.key_file_path(key_name);
 
         let jwe_token = fs::read_to_string(&key_path)
             .map_err(|e| SignerError::Config(format!("Failed to read key file {key_name}: {e}")))?;
 
-        let decrypted_key = decrypt_key(&jwe_token, password)?;
+        let password_str = password
+            .as_str()
+            .map_err(|e| SignerError::Config(format!("Invalid UTF-8 in password: {e}")))?;
+        let decrypted_key = decrypt_key(&jwe_token, password_str)?;
         Ok(KeyMaterial::from_bytes(decrypted_key))
     }
 
@@ -176,11 +180,14 @@ impl FileBackend {
         &self,
         key_name: &str,
         key_material: &KeyMaterial,
-        password: &str,
+        password: &SecureString,
     ) -> Result<(), SignerError> {
         let key_path = self.key_file_path(key_name);
 
-        let jwe_token = encrypt_key(key_material.raw_bytes(), password)?;
+        let password_str = password
+            .as_str()
+            .map_err(|e| SignerError::Config(format!("Invalid UTF-8 in password: {e}")))?;
+        let jwe_token = encrypt_key(key_material.raw_bytes(), password_str)?;
 
         fs::write(&key_path, &jwe_token).map_err(|e| {
             SignerError::Config(format!("Failed to write key file {key_name}: {e}"))
@@ -220,7 +227,7 @@ impl FileBackend {
         keystore_dir: &str,
         key_name: &str,
         private_key_hex: &str,
-        password: &str,
+        password: &SecureString,
     ) -> Result<(), SignerError> {
         let backend = FileBackend::new(keystore_dir.to_string());
         backend.ensure_directory_exists()?;
@@ -234,6 +241,17 @@ impl FileBackend {
             key_name, keystore_dir
         );
         Ok(())
+    }
+
+    /// Legacy create_key function for backward compatibility
+    pub async fn create_key_string(
+        keystore_dir: &str,
+        key_name: &str,
+        private_key_hex: &str,
+        password: &str,
+    ) -> Result<(), SignerError> {
+        let secure_password = SecureString::from_string_slice(password);
+        Self::create_key(keystore_dir, key_name, private_key_hex, &secure_password).await
     }
 
     /// List all available keys
@@ -292,7 +310,7 @@ impl FileBackend {
 #[async_trait]
 impl KeystoreBackend for FileBackend {
     async fn init(&mut self, config: Option<&str>) -> Result<(), SignerError> {
-        let password = config.ok_or_else(|| {
+        let password_str = config.ok_or_else(|| {
             SignerError::Config("Password required for file keystore".to_string())
         })?;
 
@@ -309,8 +327,9 @@ impl KeystoreBackend for FileBackend {
             return Ok(()); // Not an error, just empty keystore
         }
 
-        self.password = Some(password.to_string());
-        self.load_keys(password)?;
+        let secure_password = SecureString::from_string_slice(password_str);
+        self.password = Some(secure_password.clone());
+        self.load_keys(&secure_password)?;
 
         if self.keys.is_empty() {
             warn!(
@@ -422,7 +441,7 @@ mod tests {
         let key_name = "test_key";
 
         // Create key
-        FileBackend::create_key(keystore_path, key_name, private_key, password)
+        FileBackend::create_key_string(keystore_path, key_name, private_key, password)
             .await
             .unwrap();
 
@@ -444,7 +463,7 @@ mod tests {
         let password = "test_password_123";
 
         // Create multiple keys
-        FileBackend::create_key(
+        FileBackend::create_key_string(
             keystore_path,
             "key1",
             "1111111111111111111111111111111111111111111111111111111111111111",
@@ -453,7 +472,7 @@ mod tests {
         .await
         .unwrap();
 
-        FileBackend::create_key(
+        FileBackend::create_key_string(
             keystore_path,
             "key2",
             "2222222222222222222222222222222222222222222222222222222222222222",

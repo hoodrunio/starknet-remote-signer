@@ -1,6 +1,6 @@
 use starknet::signers::SigningKey;
 use starknet_crypto::Felt;
-use zeroize::ZeroizeOnDrop;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::errors::SignerError;
 
@@ -71,5 +71,18 @@ impl KeyMaterial {
     /// Get raw bytes (use with caution)
     pub fn raw_bytes(&self) -> &[u8; 32] {
         &self.private_key
+    }
+
+    /// Manually zeroize the key material (called automatically on drop)
+    pub fn zeroize(&mut self) {
+        self.private_key.zeroize();
+    }
+
+    /// Create a secure copy for temporary operations
+    /// The returned copy will also be zeroized on drop
+    pub fn secure_clone(&self) -> Self {
+        Self {
+            private_key: self.private_key,
+        }
     }
 }

@@ -100,7 +100,7 @@ mod tests {
         let key_name = "test_key";
 
         // Create key in file backend
-        FileBackend::create_key(keystore_path, key_name, private_key, password)
+        FileBackend::create_key_string(keystore_path, key_name, private_key, password)
             .await
             .unwrap();
 

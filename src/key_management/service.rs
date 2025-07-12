@@ -3,7 +3,7 @@ use tracing::{info, warn};
 
 use crate::keystore::backends::BackendUtils;
 use crate::keystore::{BackendConfig, FileBackend, KeyMaterial, Keystore};
-use crate::utils::prompt_for_passphrase_with_confirmation;
+use crate::utils::prompt_for_passphrase_with_confirmation_string;
 
 /// Unified key management service for all backend types
 pub struct KeyManagementService;
@@ -149,7 +149,7 @@ impl KeyManagementService {
             &format!("Enter passphrase for new key '{key_name}': "),
         )?;
 
-        FileBackend::create_key(&dir, key_name, private_key_hex, &passphrase).await?;
+        FileBackend::create_key_string(&dir, key_name, private_key_hex, &passphrase).await?;
         info!("✅ Key '{}' created in file keystore: {}", key_name, dir);
         Ok(())
     }
@@ -286,7 +286,7 @@ impl KeyManagementService {
                 warn!("⚠️  Consider omitting --passphrase to use secure prompting instead");
                 Ok(provided)
             }
-            None => prompt_for_passphrase_with_confirmation(prompt),
+            None => prompt_for_passphrase_with_confirmation_string(prompt),
         }
     }
 }

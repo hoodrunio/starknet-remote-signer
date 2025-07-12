@@ -100,7 +100,7 @@ async fn start_server(args: StartArgs) -> Result<()> {
 }
 
 async fn init_keystore(args: InitArgs) -> Result<()> {
-    use crate::{utils::prompt_for_passphrase_with_confirmation, Keystore};
+    use crate::{utils::prompt_for_passphrase_with_confirmation_string, Keystore};
 
     // Initialize logging
     let subscriber = tracing_subscriber::fmt()
@@ -121,7 +121,9 @@ async fn init_keystore(args: InitArgs) -> Result<()> {
             warn!("⚠️  Consider omitting --passphrase to use secure prompting instead");
             provided_passphrase
         }
-        None => prompt_for_passphrase_with_confirmation("Enter passphrase for new keystore: ")?,
+        None => {
+            prompt_for_passphrase_with_confirmation_string("Enter passphrase for new keystore: ")?
+        }
     };
 
     // Create encrypted keystore

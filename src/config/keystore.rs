@@ -1,18 +1,18 @@
 use super::types::Config;
 use crate::errors::SignerError;
 use crate::keystore::{BackendConfig, Keystore};
-use crate::utils::get_passphrase_securely;
+use crate::utils::get_passphrase_securely_string;
 
 impl Config {
     /// Get passphrase securely for keystore operations
     pub fn get_keystore_passphrase(&self) -> Result<Option<String>, SignerError> {
         match self.keystore.backend.as_str() {
             "software" | "file" => {
-                let passphrase =
-                    get_passphrase_securely(self.passphrase.clone(), "Enter keystore passphrase: ")
-                        .map_err(|e| {
-                            SignerError::Config(format!("Failed to get passphrase: {e}"))
-                        })?;
+                let passphrase = get_passphrase_securely_string(
+                    self.passphrase.clone(),
+                    "Enter keystore passphrase: ",
+                )
+                .map_err(|e| SignerError::Config(format!("Failed to get passphrase: {e}")))?;
                 Ok(Some(passphrase))
             }
             _ => Ok(None), // Other backends don't need passphrase

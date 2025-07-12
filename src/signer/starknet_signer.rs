@@ -41,6 +41,9 @@ impl StarknetSigner {
             .sign(&transaction_hash)
             .map_err(|e| SignerError::Crypto(format!("Signing failed: {e}")))?;
 
+        // Note: Felt types don't implement Zeroize, so we can't use SecureBuffer
+        // The signature components are returned directly
+        // In a future enhancement, we could implement custom Zeroize for Felt
         Ok(vec![signature.r, signature.s])
     }
 
@@ -53,6 +56,8 @@ impl StarknetSigner {
         let transaction_hash = compute_transaction_hash(transaction, chain_id)?;
         debug!("Computed transaction hash: 0x{:x}", transaction_hash);
 
+        // Note: Felt types don't implement Zeroize, so we can't use SecureBuffer for transaction_hash
+        // The hash is used directly for signing
         self.sign_transaction_hash(transaction_hash).await
     }
 }
