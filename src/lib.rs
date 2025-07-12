@@ -9,6 +9,7 @@ pub mod security;
 pub mod server;
 pub mod signer;
 pub mod utils;
+pub mod validation;
 
 pub use config::Config;
 pub use errors::SignerError;

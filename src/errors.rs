@@ -25,6 +25,9 @@ pub enum SignerError {
 
     #[error("Unauthorized: {0}")]
     Unauthorized(String),
+
+    #[error("Transaction validation failed: {0}")]
+    ValidationFailed(String),
 }
 
 impl From<anyhow::Error> for SignerError {

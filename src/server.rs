@@ -21,6 +21,7 @@ use crate::errors::SignerError;
 use crate::security::SecurityValidator;
 use crate::signer::{compute_transaction_hash, StarknetSigner};
 use crate::utils::{extract_real_ip, validate_ip_access, TlsManager};
+use crate::validation::AttestationValidator;
 
 /// Shared application state
 #[derive(Clone)]
@@ -30,6 +31,7 @@ pub struct AppState {
     pub metrics: Arc<Metrics>,
     pub security: SecurityValidator,
     pub audit_logger: Option<Arc<AuditLogger>>,
+    pub attestation_validator: AttestationValidator,
 }
 
 /// Basic metrics for monitoring
@@ -116,12 +118,16 @@ impl Server {
             None
         };
 
+        // Initialize attestation validator (chain will be detected per request)
+        let attestation_validator = AttestationValidator::new(None, true);
+
         let app_state = AppState {
             signer,
             config: config.clone(),
             metrics,
             security,
             audit_logger,
+            attestation_validator,
         };
 
         Ok(Self { config, app_state })
@@ -290,18 +296,42 @@ async fn sign_transaction(
         return Err(StatusCode::BAD_REQUEST);
     }
 
+    // Create chain-specific validator for this request
+    let chain_specific_validator = AttestationValidator::with_chain_detection(request.chain_id);
+
+    // Validate that this is a valid attestation transaction
+    let attestation_info = match chain_specific_validator
+        .validate_attestation_request(&request.transaction, request.chain_id)
+    {
+        Ok(info) => info,
+        Err(e) => {
+            if let Some(audit) = &mut audit_entry {
+                audit.set_error(format!("Invalid attestation transaction: {e}"));
+                audit.update_duration(start_time);
+                if let Some(logger) = &state.audit_logger {
+                    let _ = logger.log(audit).await;
+                }
+            }
+            warn!(
+                "Rejected non-attestation transaction from {}: {}",
+                real_ip, e
+            );
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    };
+
     // Determine if this is a prepare phase or invoke phase
     let is_prepare_phase = is_transaction_in_preparation_phase(&request.transaction);
 
     if is_prepare_phase {
         info!(
-            "Signing request from {} for sender: 0x{:x}, chain_id: 0x{:x} [PREPARATION PHASE]",
-            real_ip, request.transaction.sender_address, request.chain_id
+            "Signing attestation request from {} for sender: 0x{:x}, chain_id: 0x{:x} [PREPARATION PHASE] - {}",
+            real_ip, request.transaction.sender_address, request.chain_id, attestation_info.summary()
         );
     } else {
         info!(
-            "Signing request from {} for sender: 0x{:x}, chain_id: 0x{:x} [EXECUTION PHASE]",
-            real_ip, request.transaction.sender_address, request.chain_id
+            "Signing attestation request from {} for sender: 0x{:x}, chain_id: 0x{:x} [EXECUTION PHASE] - {}",
+            real_ip, request.transaction.sender_address, request.chain_id, attestation_info.summary()
         );
     }
 
@@ -346,13 +376,13 @@ async fn sign_transaction(
 
             if is_prepare_phase {
                 info!(
-                    "Transaction prepared successfully (tx_hash: 0x{:x}) - Preparation phase complete",
-                    tx_hash
+                    "Attestation transaction prepared successfully (tx_hash: 0x{:x}) - Preparation phase complete - {}",
+                    tx_hash, attestation_info.summary()
                 );
             } else {
                 info!(
-                    "Transaction signed successfully (tx_hash: 0x{:x}) - Ready for broadcast",
-                    tx_hash
+                    "Attestation transaction signed successfully (tx_hash: 0x{:x}) - Ready for broadcast - {}",
+                    tx_hash, attestation_info.summary()
                 );
             }
             Ok(Json(SignResponse { signature }))
