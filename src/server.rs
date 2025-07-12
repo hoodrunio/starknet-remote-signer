@@ -77,6 +77,18 @@ pub struct MetricsResponse {
     pub health_checks: u64,
 }
 
+/// Check if a transaction has default resource bounds (all zeros)
+/// This indicates it's in the prepare phase, not the invoke phase
+fn is_transaction_in_prepare_phase(transaction: &BroadcastedInvokeTransactionV3) -> bool {
+    // Default resource bounds from attestation tool have all values as 0
+    transaction.resource_bounds.l1_gas.max_amount == 0
+        && transaction.resource_bounds.l1_gas.max_price_per_unit == 0
+        && transaction.resource_bounds.l1_data_gas.max_amount == 0
+        && transaction.resource_bounds.l1_data_gas.max_price_per_unit == 0
+        && transaction.resource_bounds.l2_gas.max_amount == 0
+        && transaction.resource_bounds.l2_gas.max_price_per_unit == 0
+}
+
 impl Server {
     pub async fn new(config: Config) -> Result<Self, SignerError> {
         // Initialize keystore
@@ -273,10 +285,20 @@ async fn sign_transaction(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    info!(
-        "Signing request from {} for sender: 0x{:x}, chain_id: 0x{:x}",
-        real_ip, request.transaction.sender_address, request.chain_id
-    );
+    // Determine if this is a prepare phase or invoke phase
+    let is_prepare_phase = is_transaction_in_prepare_phase(&request.transaction);
+
+    if is_prepare_phase {
+        info!(
+            "Signing request from {} for sender: 0x{:x}, chain_id: 0x{:x} [PREPARE PHASE]",
+            real_ip, request.transaction.sender_address, request.chain_id
+        );
+    } else {
+        info!(
+            "Signing request from {} for sender: 0x{:x}, chain_id: 0x{:x} [INVOKE PHASE]",
+            real_ip, request.transaction.sender_address, request.chain_id
+        );
+    }
 
     // Compute transaction hash for audit
     let tx_hash = match compute_transaction_hash(&request.transaction, request.chain_id) {
@@ -317,10 +339,17 @@ async fn sign_transaction(
                 }
             }
 
-            info!(
-                "Transaction signed successfully for {} (tx_hash: 0x{:x})",
-                real_ip, tx_hash
-            );
+            if is_prepare_phase {
+                info!(
+                    "Transaction prepared successfully for {} (tx_hash: 0x{:x}) - NOT BROADCASTED",
+                    real_ip, tx_hash
+                );
+            } else {
+                info!(
+                    "Transaction signed successfully for {} (tx_hash: 0x{:x}) - WILL BE BROADCASTED",
+                    real_ip, tx_hash
+                );
+            }
             Ok(Json(SignResponse { signature }))
         }
         Err(e) => {
