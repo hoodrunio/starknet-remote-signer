@@ -84,9 +84,18 @@ async fn main() -> Result<()> {
 }
 
 async fn start_server(args: StartArgs) -> Result<()> {
+    // Store CLI log level for priority handling
+    let cli_log_level = args.log_level.clone();
+
+    // Load configuration first to get logging config
+    let mut config = Config::load(args)?;
+    let log_level = cli_log_level
+        .or_else(|| std::env::var("RUST_LOG").ok())
+        .unwrap_or_else(|| config.logging.level.clone());
+
     // Initialize logging
     let subscriber = tracing_subscriber::fmt()
-        .with_env_filter(&args.log_level)
+        .with_env_filter(&log_level)
         .compact()
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
@@ -95,9 +104,7 @@ async fn start_server(args: StartArgs) -> Result<()> {
         "Starting Starknet Remote Signer v{}",
         env!("CARGO_PKG_VERSION")
     );
-
-    // Load configuration
-    let mut config = Config::load(args)?;
+    info!("Log level: {}", log_level);
 
     // Validate configuration
     config.validate()?;

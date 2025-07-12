@@ -491,6 +491,7 @@ mod tests {
             passphrase: None,
             security: crate::config::SecurityConfig::default(),
             audit: crate::config::AuditConfig::default(),
+            logging: crate::config::LoggingConfig::default(),
         };
 
         // Set test private key in environment

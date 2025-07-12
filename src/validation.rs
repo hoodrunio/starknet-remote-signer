@@ -1,9 +1,9 @@
 use starknet::core::types::BroadcastedInvokeTransactionV3;
 use starknet::core::utils::get_selector_from_name;
-use starknet::macros::felt;
 use starknet_crypto::Felt;
 use tracing::{debug, warn};
 
+use crate::constants::{mainnet, sepolia, validation::*, MAINNET_CHAIN_ID, SEPOLIA_CHAIN_ID};
 use crate::errors::SignerError;
 
 /// Chain-specific contract addresses for attestation validation
@@ -40,29 +40,17 @@ impl AttestationValidator {
 
     /// Get contract addresses for specific chain
     pub fn get_chain_contracts(chain_id: Felt) -> Option<ChainContracts> {
-        // Mainnet: 0x534e5f4d41494e (SN_MAIN)
-        const MAINNET_CHAIN_ID: Felt = felt!("0x534e5f4d41494e");
-        // Sepolia: 0x534e5f5345504f4c4941 (SN_SEPOLIA)
-        const SEPOLIA_CHAIN_ID: Felt = felt!("0x534e5f5345504f4c4941");
-
         if chain_id == MAINNET_CHAIN_ID {
             Some(ChainContracts {
-                staking_contract: felt!(
-                    "0x00ca1702e64c81d9a07b86bd2c540188d92a2c73cf5cc0e508d949015e7e84a7"
-                ),
-                attestation_contracts: vec![felt!(
-                    "0x010398fe631af9ab2311840432d507bf7ef4b959ae967f1507928f5afe888a99"
-                )],
+                staking_contract: mainnet::STAKING_CONTRACT,
+                attestation_contracts: vec![mainnet::ATTESTATION_CONTRACT],
             })
         } else if chain_id == SEPOLIA_CHAIN_ID {
             Some(ChainContracts {
-                staking_contract: felt!(
-                    "0x03745ab04a431fc02871a139be6b93d9260b0ff3e779ad9c8b377183b23109f1"
-                ),
+                staking_contract: sepolia::STAKING_CONTRACT,
                 attestation_contracts: vec![
-                    // Both variations for Sepolia (starknet-attestation and starknet-staking-v2)
-                    felt!("0x3f32e152b9637c31bfcf73e434f78591067a01ba070505ff6ee195642c9acfb"), // starknet-attestation
-                    felt!("0x03f32e152b9637c31bfcf73e434f78591067a01ba070505ff6ee195642c9acfb"), // starknet-staking-v2
+                    sepolia::STARKNET_ATTESTATION_CONTRACT,
+                    sepolia::STARKNET_STAKING_V2_CONTRACT,
                 ],
             })
         } else {
@@ -94,9 +82,6 @@ impl AttestationValidator {
 
     /// Validate chain ID
     fn validate_chain_id(&self, chain_id: Felt) -> Result<(), SignerError> {
-        const MAINNET_CHAIN_ID: Felt = felt!("0x534e5f4d41494e");
-        const SEPOLIA_CHAIN_ID: Felt = felt!("0x534e5f5345504f4c4941");
-
         if chain_id != MAINNET_CHAIN_ID && chain_id != SEPOLIA_CHAIN_ID {
             return Err(SignerError::ValidationFailed(format!(
                 "Invalid chain ID: 0x{chain_id:x}. Only Mainnet (SN_MAIN) and Sepolia (SN_SEPOLIA) are supported"
@@ -170,9 +155,10 @@ impl AttestationValidator {
         // [2]: function selector (attest function)
         // [3]: calldata length (should be 1)
         // [4]: block hash being attested
-        if calldata.len() != 5 {
+        if calldata.len() != ATTESTATION_CALLDATA_LENGTH {
             return Err(SignerError::ValidationFailed(format!(
-                "Invalid calldata length for attestation transaction: expected 5, got {}",
+                "Invalid calldata length for attestation transaction: expected {}, got {}",
+                ATTESTATION_CALLDATA_LENGTH,
                 calldata.len()
             )));
         }
@@ -184,16 +170,16 @@ impl AttestationValidator {
         let block_hash = calldata[4];
 
         // Validate call array length (must be exactly 1)
-        if call_array_length != Felt::ONE {
+        if call_array_length != EXPECTED_CALL_ARRAY_LENGTH {
             return Err(SignerError::ValidationFailed(format!(
-                "Invalid call array length: expected 1, got {call_array_length:#x}"
+                "Invalid call array length: expected {EXPECTED_CALL_ARRAY_LENGTH:#x}, got {call_array_length:#x}"
             )));
         }
 
         // Validate calldata length (must be exactly 1)
-        if calldata_length != Felt::ONE {
+        if calldata_length != EXPECTED_ATTESTATION_CALLDATA_LENGTH {
             return Err(SignerError::ValidationFailed(format!(
-                "Invalid calldata length: expected 1, got {calldata_length:#x}"
+                "Invalid calldata length: expected {EXPECTED_ATTESTATION_CALLDATA_LENGTH:#x}, got {calldata_length:#x}"
             )));
         }
 

@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod integration_tests {
-    use crate::config::{AuditConfig, KeystoreConfig, SecurityConfig, ServerConfig, TlsConfig};
+    use crate::config::{
+        AuditConfig, KeystoreConfig, LoggingConfig, SecurityConfig, ServerConfig, TlsConfig,
+    };
+    use crate::constants::sepolia;
     use crate::{Config, Server};
     use axum::extract::connect_info::MockConnectInfo;
     use axum_test::TestServer;
@@ -8,6 +11,7 @@ mod integration_tests {
     use starknet::core::types::{
         BroadcastedInvokeTransactionV3, DataAvailabilityMode, ResourceBounds, ResourceBoundsMapping,
     };
+    use starknet::core::utils::get_selector_from_name;
     use starknet::macros::felt;
     use std::net::SocketAddr;
 
@@ -46,6 +50,9 @@ mod integration_tests {
                 log_path: "/tmp/test-audit.log".to_string(), // Temporary path for tests
                 rotate_daily: false,
             },
+            logging: LoggingConfig {
+                level: "info".to_string(),
+            },
         };
 
         let server = Server::new(config).await.unwrap();
@@ -62,18 +69,21 @@ mod integration_tests {
     async fn test_starknet_attestation_compatibility() {
         let server = create_test_server().await;
 
+        // Build calldata with actual contract addresses
+        let calldata = vec![
+            "0x1".to_string(),                                           // call array length
+            format!("{:#x}", sepolia::STARKNET_ATTESTATION_CONTRACT),    // attestation contract
+            format!("{:#x}", get_selector_from_name("attest").unwrap()), // attest selector
+            "0x1".to_string(),                                           // calldata length
+            "0x614f596b9d8eafbc87a48ff3a2a4bd503762d3f4be7c91cdeb766cf869c2233".to_string(), // block hash
+        ];
+
         // This is exactly what starknet-attestation sends
         let request_body = json!({
             "transaction": {
                 "type": "INVOKE",
                 "sender_address": "0x2e216b191ac966ba1d35cb6cfddfaf9c12aec4dfe869d9fa6233611bb334ee9",
-                "calldata": [
-                    "0x1",
-                    "0x4862e05d00f2d0981c4a912269c21ad99438598ab86b6e70d1cee267caaa78d",
-                    "0x37446750a403c1b4014436073cf8d08ceadc5b156ac1c8b7b0ca41a0c9c1c54",
-                    "0x1",
-                    "0x614f596b9d8eafbc87a48ff3a2a4bd503762d3f4be7c91cdeb766cf869c2233"
-                ],
+                "calldata": calldata,
                 "version": "0x3",
                 "signature": [],
                 "nonce": "0xbf",
@@ -136,11 +146,11 @@ mod integration_tests {
                 "0x2e216b191ac966ba1d35cb6cfddfaf9c12aec4dfe869d9fa6233611bb334ee9"
             ),
             calldata: vec![
-                felt!("0x1"),
-                felt!("0x4862e05d00f2d0981c4a912269c21ad99438598ab86b6e70d1cee267caaa78d"),
-                felt!("0x37446750a403c1b4014436073cf8d08ceadc5b156ac1c8b7b0ca41a0c9c1c54"),
-                felt!("0x1"),
-                felt!("0x614f596b9d8eafbc87a48ff3a2a4bd503762d3f4be7c91cdeb766cf869c2233"),
+                felt!("0x1"),                              // call array length
+                sepolia::STARKNET_ATTESTATION_CONTRACT,    // attestation contract
+                get_selector_from_name("attest").unwrap(), // attest selector
+                felt!("0x1"),                              // calldata length
+                felt!("0x614f596b9d8eafbc87a48ff3a2a4bd503762d3f4be7c91cdeb766cf869c2233"), // block hash
             ],
             signature: vec![],
             nonce: felt!("0xbf"),

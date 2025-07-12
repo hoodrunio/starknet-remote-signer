@@ -16,6 +16,8 @@ pub struct Config {
     pub security: SecurityConfig,
     #[serde(default)]
     pub audit: AuditConfig,
+    #[serde(default)]
+    pub logging: LoggingConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,6 +71,20 @@ impl Default for AuditConfig {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LoggingConfig {
+    pub level: String,
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            level: "info".to_string(),
+        }
+    }
+}
+
 impl Config {
     pub fn load(cli: crate::StartArgs) -> Result<Self> {
         // Save CLI values to check for defaults later
@@ -102,6 +118,7 @@ impl Config {
             passphrase: cli.passphrase,
             security: SecurityConfig::default(),
             audit: AuditConfig::default(),
+            logging: LoggingConfig::default(),
         };
 
         // Load from config file if provided
@@ -138,9 +155,10 @@ impl Config {
                 config.tls = file_config.tls;
             }
 
-            // Always use config file values for security and audit (config file takes precedence)
+            // Always use config file values for security, audit, and logging (config file takes precedence)
             config.security = file_config.security;
             config.audit = file_config.audit;
+            config.logging = file_config.logging;
         }
 
         Ok(config)

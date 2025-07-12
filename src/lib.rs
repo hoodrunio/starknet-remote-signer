@@ -2,6 +2,7 @@ use clap::Parser;
 
 pub mod audit;
 pub mod config;
+pub mod constants;
 pub mod errors;
 pub mod key_management;
 pub mod keystore;
@@ -156,8 +157,8 @@ pub struct StartArgs {
     pub tls_key: Option<String>,
 
     /// Log level
-    #[arg(long, env = "RUST_LOG", default_value = "info")]
-    pub log_level: String,
+    #[arg(long, env = "RUST_LOG")]
+    pub log_level: Option<String>,
 }
 
 #[derive(Parser)]
