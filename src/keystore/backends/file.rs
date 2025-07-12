@@ -66,7 +66,10 @@ impl FileBackend {
     /// Create keystore directory if it doesn't exist
     fn ensure_directory_exists(&self) -> Result<(), SignerError> {
         if !self.keystore_dir.exists() {
-            BackendUtils::ensure_secure_directory(self.keystore_dir.to_str().unwrap())?;
+            let dir_str = self.keystore_dir.to_str().ok_or_else(|| {
+                SignerError::Config("Invalid keystore directory path".to_string())
+            })?;
+            BackendUtils::ensure_secure_directory(dir_str)?;
             info!(
                 "Created keystore directory: {}",
                 self.keystore_dir.display()
@@ -91,7 +94,7 @@ impl FileBackend {
                 version: 1,
                 created: std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .map_err(|e| SignerError::Config(format!("System time error: {e}")))?
                     .as_secs(),
                 keys: Vec::new(),
             };
@@ -109,7 +112,10 @@ impl FileBackend {
             .map_err(|e| SignerError::Config(format!("Failed to write metadata: {e}")))?;
 
         // Set restrictive permissions using common utilities
-        BackendUtils::set_secure_file_permissions(metadata_path.to_str().unwrap())?;
+        let metadata_path_str = metadata_path
+            .to_str()
+            .ok_or_else(|| SignerError::Config("Invalid metadata file path".to_string()))?;
+        BackendUtils::set_secure_file_permissions(metadata_path_str)?;
 
         Ok(())
     }
@@ -205,7 +211,10 @@ impl FileBackend {
         })?;
 
         // Set restrictive permissions using common utilities
-        BackendUtils::set_secure_file_permissions(key_path.to_str().unwrap())?;
+        let key_path_str = key_path
+            .to_str()
+            .ok_or_else(|| SignerError::Config("Invalid key file path".to_string()))?;
+        BackendUtils::set_secure_file_permissions(key_path_str)?;
 
         info!("Saved key '{}' to file keystore", key_name);
         Ok(())
@@ -315,7 +324,11 @@ impl FileBackend {
         }
 
         // Otherwise, return the first key
-        Ok(self.keys.keys().next().unwrap().clone())
+        self.keys
+            .keys()
+            .next()
+            .ok_or_else(|| SignerError::Config("No keys available in keystore".to_string()))
+            .cloned()
     }
 }
 
@@ -405,7 +418,10 @@ impl KeystoreBackend for FileBackend {
 
         // Check write permissions if directory exists using common utilities
         if self.keystore_dir.exists() {
-            BackendUtils::check_directory_writable(self.keystore_dir.to_str().unwrap())?;
+            let dir_str = self.keystore_dir.to_str().ok_or_else(|| {
+                SignerError::Config("Invalid keystore directory path".to_string())
+            })?;
+            BackendUtils::check_directory_writable(dir_str)?;
         }
 
         Ok(())

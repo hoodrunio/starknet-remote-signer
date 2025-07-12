@@ -1,3 +1,5 @@
+use axum::http::HeaderValue;
+
 /// Middleware to add security headers to all responses
 pub async fn security_headers_middleware(
     request: axum::http::Request<axum::body::Body>,
@@ -5,20 +7,26 @@ pub async fn security_headers_middleware(
 ) -> axum::response::Response {
     let mut response = next.run(request).await;
 
-    // Add security headers
+    // Add security headers using static values to avoid parse failures
     let headers = response.headers_mut();
-    headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
-    headers.insert("X-Frame-Options", "DENY".parse().unwrap());
-    headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
+    headers.insert(
+        "X-Content-Type-Options",
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert("X-Frame-Options", HeaderValue::from_static("DENY"));
+    headers.insert(
+        "X-XSS-Protection",
+        HeaderValue::from_static("1; mode=block"),
+    );
     headers.insert(
         "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains".parse().unwrap(),
+        HeaderValue::from_static("max-age=31536000; includeSubDomains"),
     );
     headers.insert(
         "Content-Security-Policy",
-        "default-src 'none'".parse().unwrap(),
+        HeaderValue::from_static("default-src 'none'"),
     );
-    headers.insert("Referrer-Policy", "no-referrer".parse().unwrap());
+    headers.insert("Referrer-Policy", HeaderValue::from_static("no-referrer"));
 
     // Remove server information
     headers.remove("server");

@@ -38,10 +38,12 @@ impl Config {
                     ));
                 }
                 tracing::debug!("📁 File backend configured");
-                tracing::debug!(
-                    "🔐 Keys will be stored as encrypted files in directory: '{}'",
-                    self.keystore.dir.as_ref().unwrap()
-                );
+                if let Some(dir) = &self.keystore.dir {
+                    tracing::debug!(
+                        "🔐 Keys will be stored as encrypted files in directory: '{}'",
+                        dir
+                    );
+                }
                 if let Some(key_name) = &self.keystore.key_name {
                     tracing::debug!("🔑 Will use key: '{}'", key_name);
                 } else {
@@ -115,19 +117,23 @@ impl Config {
         #[cfg(all(target_os = "linux", not(target_env = "musl")))]
         {
             tracing::debug!("📱 OS keyring backend configured for Linux (with D-Bus support)");
-            tracing::debug!(
-                "🔐 Keys will be stored in system keyring with key name: '{}'",
-                self.keystore.key_name.as_ref().unwrap()
-            );
+            if let Some(key_name) = &self.keystore.key_name {
+                tracing::debug!(
+                    "🔐 Keys will be stored in system keyring with key name: '{}'",
+                    key_name
+                );
+            }
         }
 
         #[cfg(target_os = "macos")]
         {
             tracing::debug!("📱 OS keyring backend configured for macOS");
-            tracing::debug!(
-                "🔐 Keys will be stored in macOS Keychain with key name: '{}'",
-                self.keystore.key_name.as_ref().unwrap()
-            );
+            if let Some(key_name) = &self.keystore.key_name {
+                tracing::debug!(
+                    "🔐 Keys will be stored in macOS Keychain with key name: '{}'",
+                    key_name
+                );
+            }
         }
 
         Ok(())
