@@ -99,8 +99,7 @@ impl AttestationValidator {
 
         if chain_id != MAINNET_CHAIN_ID && chain_id != SEPOLIA_CHAIN_ID {
             return Err(SignerError::ValidationFailed(format!(
-                "Invalid chain ID: 0x{:x}. Only Mainnet (SN_MAIN) and Sepolia (SN_SEPOLIA) are supported",
-                chain_id
+                "Invalid chain ID: 0x{chain_id:x}. Only Mainnet (SN_MAIN) and Sepolia (SN_SEPOLIA) are supported"
             )));
         }
 
@@ -187,24 +186,21 @@ impl AttestationValidator {
         // Validate call array length (must be exactly 1)
         if call_array_length != Felt::ONE {
             return Err(SignerError::ValidationFailed(format!(
-                "Invalid call array length: expected 1, got {:#x}",
-                call_array_length
+                "Invalid call array length: expected 1, got {call_array_length:#x}"
             )));
         }
 
         // Validate calldata length (must be exactly 1)
         if calldata_length != Felt::ONE {
             return Err(SignerError::ValidationFailed(format!(
-                "Invalid calldata length: expected 1, got {:#x}",
-                calldata_length
+                "Invalid calldata length: expected 1, got {calldata_length:#x}"
             )));
         }
 
         // Validate function selector (must be "attest")
         if function_selector != attest_selector {
             return Err(SignerError::ValidationFailed(format!(
-                "Invalid function selector: expected attest ({:#x}), got {:#x}",
-                attest_selector, function_selector
+                "Invalid function selector: expected attest ({attest_selector:#x}), got {function_selector:#x}"
             )));
         }
 
@@ -214,7 +210,7 @@ impl AttestationValidator {
                 let valid_contracts: Vec<String> = contracts
                     .attestation_contracts
                     .iter()
-                    .map(|addr| format!("{:#x}", addr))
+                    .map(|addr| format!("{addr:#x}"))
                     .collect();
 
                 return Err(SignerError::ValidationFailed(format!(
