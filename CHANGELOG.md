@@ -7,14 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Initial release preparation
-- GitHub Actions workflow for automated releases
-- Cross-platform binary builds (Linux, macOS)
-- Docker image builds and publishing
-- Release automation script
+## [0.1.2] - 2025-07-12
 
-## [0.1.1] - 2025-12-07
+### Added
+- Transaction phase detection during signing process for better validation
+- Attestation transaction validation support
+- Constants module for configuration values
+- Comprehensive secure memory handling with `SecureBuffer` and `SecureArray` types
+- `SecureString` type for password and sensitive string management
+- Enhanced logging configuration and structured logging
+- `KeyManagementService` for centralized key operations
+- Factory pattern for keystore backend creation
+- Utility functions for secure file operations and permissions
+- Enhanced error response types with structured error codes
+- Better separation between client-facing and operator error messages
+
+### Changed
+- **BREAKING**: Enhanced error handling with sanitized client messages and detailed operator logs
+- **SECURITY**: File paths in error messages now abstracted to prevent information disclosure
+- **SECURITY**: Configuration details moved from INFO to DEBUG logging level
+- **SECURITY**: Chain validation errors no longer expose supported network details
+- **SECURITY**: IP validation errors provide generic messages instead of exposing specific IPs
+- Password handling throughout the codebase now uses `SecureString` for enhanced security
+- Refactored codebase into organized module structure for better maintainability
+- Key management operations now use centralized service pattern
+- Improved file backend implementation with better error handling
+- Enhanced OS keyring backend with better platform-specific handling
+- Streamlined CLI command handling with dedicated command module
+
+### Fixed
+- Information disclosure vulnerabilities in error messages
+- File path exposure in keystore error responses
+- Backend enumeration through error messages
+- Memory safety improvements with automatic zeroization of sensitive data
+
+### Security
+- **CRITICAL**: Fixed information disclosure in validation error messages
+- **HIGH**: Abstracted file system paths from client-facing error messages
+- **MEDIUM**: Reduced configuration verbosity to prevent system detail leakage
+- Added secure memory handling with automatic cleanup of sensitive data
+- Enhanced password security with constant-time comparison operations
+- Improved error message sanitization for production security
+- Better separation of concerns between client responses and operator debugging
+
+## [0.1.1] - 2025-07-11
 
 ### Added
 - Initial implementation of Starknet remote signer
@@ -51,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 When creating a new release, copy the following template and fill in the details:
 
 ```markdown
-## [X.Y.Z] - YYYY-MM-DD
+## [X.Y.Z] - YYYY-DD-MM
 
 ### Added
 - New features
