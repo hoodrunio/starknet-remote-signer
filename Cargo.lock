@@ -3410,7 +3410,7 @@ dependencies = [
 
 [[package]]
 name = "starknet-remote-signer"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3431,6 +3431,7 @@ dependencies = [
  "serde_json",
  "starknet",
  "starknet-crypto",
+ "subtle",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use tracing::warn;
 
 use crate::errors::SignerError;
-use crate::keystore::backends::KeystoreBackend;
+use crate::keystore::backends::{BackendUtils, KeystoreBackend};
 use crate::keystore::key_material::KeyMaterial;
 
 /// Environment variable keystore backend (for development only)
@@ -33,26 +33,8 @@ impl EnvironmentBackend {
             SignerError::Config(format!("Environment variable {} not set", self.var_name))
         })?;
 
-        // Validate the private key format
-        if private_key_hex.is_empty() {
-            return Err(SignerError::InvalidKey(
-                "Private key cannot be empty".to_string(),
-            ));
-        }
-
-        // Ensure the key is properly formatted (hex string)
-        if !private_key_hex.chars().all(|c| c.is_ascii_hexdigit()) {
-            return Err(SignerError::InvalidKey(
-                "Private key must be a valid hex string".to_string(),
-            ));
-        }
-
-        // Validate key length (64 hex characters = 32 bytes)
-        if private_key_hex.len() != 64 {
-            return Err(SignerError::InvalidKey(
-                "Private key must be exactly 64 hex characters (32 bytes)".to_string(),
-            ));
-        }
+        // Validate the private key format using common utilities
+        BackendUtils::validate_private_key_hex(&private_key_hex)?;
 
         self.key_material = Some(KeyMaterial::from_hex(&private_key_hex)?);
         Ok(())
@@ -92,10 +74,8 @@ impl KeystoreBackend for EnvironmentBackend {
             warn!("Environment variable {} is not set", self.var_name);
         }
 
-        // Additional security warning during validation
-        warn!("⚠️  SECURITY WARNING: Environment backend configured");
-        warn!("⚠️  Private keys stored in environment variables are less secure");
-        warn!("⚠️  Consider using 'software' backend with encrypted keystore for production");
+        // Use common security warning utility
+        BackendUtils::log_security_warnings("environment");
 
         Ok(())
     }

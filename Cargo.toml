@@ -1,6 +1,6 @@
 [package]
 name = "starknet-remote-signer"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "A secure remote signing service for Starknet validators"
 license = "Apache-2.0"
@@ -44,6 +44,7 @@ async-trait = "0.1.88"
 # Security & Crypto
 hex = "0.4"
 zeroize = { version = "1.8.1", features = ["derive"] }
+subtle = "2.6.1"
 josekit = "0.10.3"
 # Add vendored OpenSSL for cross-compilation in GitHub Actions
 openssl = { version = "0.10.73", features = ["vendored"] }

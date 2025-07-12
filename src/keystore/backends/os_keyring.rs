@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use tracing::{info, warn};
 
 use crate::errors::SignerError;
-use crate::keystore::backends::KeystoreBackend;
+use crate::keystore::backends::{BackendUtils, KeystoreBackend};
 use crate::keystore::key_material::KeyMaterial;
 
 /// OS Keyring backend for secure system-level key storage
@@ -71,13 +71,22 @@ impl OsKeyringBackend {
                 Self::service_name(),
                 self.key_name
             );
-            let entry = Entry::new(Self::service_name(), &self.key_name)
-                .map_err(|e| SignerError::Config(format!("Failed to create keyring entry: {e}")))?;
+            let entry = Entry::new(Self::service_name(), &self.key_name).map_err(|e| {
+                SignerError::Config(BackendUtils::format_backend_error(
+                    "os_keyring",
+                    "create entry",
+                    &e.to_string(),
+                ))
+            })?;
 
             info!("Storing key in keyring...");
-            entry
-                .set_password(private_key_hex)
-                .map_err(|e| SignerError::Config(format!("Failed to store key in keyring: {e}")))?;
+            entry.set_password(private_key_hex).map_err(|e| {
+                SignerError::Config(BackendUtils::format_backend_error(
+                    "os_keyring",
+                    "store key",
+                    &e.to_string(),
+                ))
+            })?;
 
             info!("✅ Stored private key '{}' in OS keyring", self.key_name);
 
@@ -126,31 +135,24 @@ impl OsKeyringBackend {
         {
             use keyring::Entry;
 
-            let entry = Entry::new(Self::service_name(), &self.key_name)
-                .map_err(|e| SignerError::Config(format!("Failed to create keyring entry: {e}")))?;
-
-            let private_key_hex = entry.get_password().map_err(|e| {
-                SignerError::Config(format!("Failed to load key from keyring: {e}"))
+            let entry = Entry::new(Self::service_name(), &self.key_name).map_err(|e| {
+                SignerError::Config(BackendUtils::format_backend_error(
+                    "os_keyring",
+                    "create entry",
+                    &e.to_string(),
+                ))
             })?;
 
-            // Validate the retrieved key
-            if private_key_hex.is_empty() {
-                return Err(SignerError::InvalidKey(
-                    "Retrieved private key is empty".to_string(),
-                ));
-            }
+            let private_key_hex = entry.get_password().map_err(|e| {
+                SignerError::Config(BackendUtils::format_backend_error(
+                    "os_keyring",
+                    "load key",
+                    &e.to_string(),
+                ))
+            })?;
 
-            if !private_key_hex.chars().all(|c| c.is_ascii_hexdigit()) {
-                return Err(SignerError::InvalidKey(
-                    "Retrieved private key is not valid hex".to_string(),
-                ));
-            }
-
-            if private_key_hex.len() != 64 {
-                return Err(SignerError::InvalidKey(
-                    "Retrieved private key has invalid length".to_string(),
-                ));
-            }
+            // Validate the retrieved key using common utilities
+            BackendUtils::validate_private_key_hex(&private_key_hex)?;
 
             self.key_material = Some(KeyMaterial::from_hex(&private_key_hex)?);
             info!("Loaded private key '{}' from OS keyring", self.key_name);
@@ -212,8 +214,13 @@ impl OsKeyringBackend {
                 Self::service_name(),
                 self.key_name
             );
-            let entry = Entry::new(Self::service_name(), &self.key_name)
-                .map_err(|e| SignerError::Config(format!("Failed to create keyring entry: {e}")))?;
+            let entry = Entry::new(Self::service_name(), &self.key_name).map_err(|e| {
+                SignerError::Config(BackendUtils::format_backend_error(
+                    "os_keyring",
+                    "create entry",
+                    &e.to_string(),
+                ))
+            })?;
 
             // First check if the key exists
             info!("Checking if key exists before deletion...");
@@ -223,16 +230,21 @@ impl OsKeyringBackend {
                 }
                 Err(e) => {
                     warn!("⚠️  Key not found in keyring: {}", e);
-                    return Err(SignerError::Config(format!(
-                        "Key '{}' not found in keyring: {e}",
-                        self.key_name
+                    return Err(SignerError::Config(BackendUtils::format_backend_error(
+                        "os_keyring",
+                        "delete key",
+                        &format!("Key '{}' not found: {}", self.key_name, e),
                     )));
                 }
             }
 
             info!("Deleting key from keyring...");
             entry.delete_credential().map_err(|e| {
-                SignerError::Config(format!("Failed to delete key from keyring: {e}"))
+                SignerError::Config(BackendUtils::format_backend_error(
+                    "os_keyring",
+                    "delete key",
+                    &e.to_string(),
+                ))
             })?;
 
             info!("✅ Deleted private key '{}' from OS keyring", self.key_name);
