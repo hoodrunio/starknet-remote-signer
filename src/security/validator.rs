@@ -69,9 +69,9 @@ impl SecurityValidator {
         }
 
         if !self.allowed_ips.contains(ip) {
-            return Err(SignerError::Unauthorized(format!(
-                "IP address {ip} is not allowed"
-            )));
+            return Err(SignerError::Unauthorized(
+                "Access denied from this IP address".to_string(),
+            ));
         }
 
         Ok(())
@@ -95,8 +95,6 @@ impl SecurityValidator {
             }
         }
 
-        Err(SignerError::Unauthorized(format!(
-            "Chain ID {chain_id} is not allowed"
-        )))
+        Err(SignerError::Unauthorized("Invalid chain ID".to_string()))
     }
 }

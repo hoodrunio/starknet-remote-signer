@@ -127,10 +127,13 @@ impl FileBackend {
                     self.keys.insert(selected_key.clone(), key_material);
                     info!("Loaded selected key '{}' from file keystore", selected_key);
                 } else {
-                    return Err(SignerError::Config(format!(
+                    tracing::debug!(
                         "Selected key file '{}' not found at: {}",
                         selected_key,
                         key_path.display()
+                    );
+                    return Err(SignerError::Config(format!(
+                        "Selected key file '{selected_key}' not found",
                     )));
                 }
             } else {
@@ -148,7 +151,12 @@ impl FileBackend {
                     let key_material = self.load_key_from_file(key_name, password)?;
                     self.keys.insert(key_name.clone(), key_material);
                 } else {
-                    warn!("Key file not found: {}", key_path.display());
+                    tracing::debug!(
+                        "Key file '{}' not found at: {}",
+                        key_name,
+                        key_path.display()
+                    );
+                    warn!("Key file '{}' not found", key_name);
                 }
             }
             info!("Loaded {} keys from file keystore", self.keys.len());
@@ -165,8 +173,10 @@ impl FileBackend {
     ) -> Result<KeyMaterial, SignerError> {
         let key_path = self.key_file_path(key_name);
 
-        let jwe_token = fs::read_to_string(&key_path)
-            .map_err(|e| SignerError::Config(format!("Failed to read key file {key_name}: {e}")))?;
+        let jwe_token = fs::read_to_string(&key_path).map_err(|e| {
+            tracing::debug!("Failed to read key file at {}: {}", key_path.display(), e);
+            SignerError::Config(format!("Failed to read key file '{key_name}': {e}"))
+        })?;
 
         let password_str = password
             .as_str()
@@ -190,7 +200,8 @@ impl FileBackend {
         let jwe_token = encrypt_key(key_material.raw_bytes(), password_str)?;
 
         fs::write(&key_path, &jwe_token).map_err(|e| {
-            SignerError::Config(format!("Failed to write key file {key_name}: {e}"))
+            tracing::debug!("Failed to write key file at {}: {}", key_path.display(), e);
+            SignerError::Config(format!("Failed to write key file '{key_name}': {e}"))
         })?;
 
         // Set restrictive permissions using common utilities
@@ -271,7 +282,8 @@ impl FileBackend {
 
         if key_path.exists() {
             fs::remove_file(&key_path).map_err(|e| {
-                SignerError::Config(format!("Failed to delete key file {key_name}: {e}"))
+                tracing::debug!("Failed to delete key file at {}: {}", key_path.display(), e);
+                SignerError::Config(format!("Failed to delete key file '{key_name}': {e}"))
             })?;
         }
 

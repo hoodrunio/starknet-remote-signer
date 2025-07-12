@@ -32,3 +32,9 @@ pub struct MetricsResponse {
     pub sign_errors: u64,
     pub health_checks: u64,
 }
+
+#[derive(Serialize)]
+pub struct ErrorResponse {
+    pub error: String,
+    pub code: String,
+}

@@ -1,4 +1,4 @@
-use tracing::{info, warn};
+use tracing::warn;
 
 use super::types::Config;
 use crate::errors::SignerError;
@@ -37,15 +37,15 @@ impl Config {
                         "Keystore directory is required for file backend".to_string(),
                     ));
                 }
-                info!("📁 File backend configured");
-                info!(
+                tracing::debug!("📁 File backend configured");
+                tracing::debug!(
                     "🔐 Keys will be stored as encrypted files in directory: '{}'",
                     self.keystore.dir.as_ref().unwrap()
                 );
                 if let Some(key_name) = &self.keystore.key_name {
-                    info!("🔑 Will use key: '{}'", key_name);
+                    tracing::debug!("🔑 Will use key: '{}'", key_name);
                 } else {
-                    info!("🔑 Will use default/first available key");
+                    tracing::debug!("🔑 Will use default/first available key");
                 }
             }
             "environment" => {
@@ -71,9 +71,11 @@ impl Config {
                 ));
             }
             _ => {
-                return Err(SignerError::Config(
-                    format!("Unknown keystore backend: {}. Supported backends: software, file, environment, os_keyring, hsm", self.keystore.backend)
-                ));
+                tracing::debug!("Unknown keystore backend: {}. Supported backends: software, file, environment, os_keyring, hsm", self.keystore.backend);
+                return Err(SignerError::Config(format!(
+                    "Unknown keystore backend: '{}'",
+                    self.keystore.backend
+                )));
             }
         }
 
@@ -112,8 +114,8 @@ impl Config {
 
         #[cfg(all(target_os = "linux", not(target_env = "musl")))]
         {
-            info!("📱 OS keyring backend configured for Linux (with D-Bus support)");
-            info!(
+            tracing::debug!("📱 OS keyring backend configured for Linux (with D-Bus support)");
+            tracing::debug!(
                 "🔐 Keys will be stored in system keyring with key name: '{}'",
                 self.keystore.key_name.as_ref().unwrap()
             );
@@ -121,8 +123,8 @@ impl Config {
 
         #[cfg(target_os = "macos")]
         {
-            info!("📱 OS keyring backend configured for macOS");
-            info!(
+            tracing::debug!("📱 OS keyring backend configured for macOS");
+            tracing::debug!(
                 "🔐 Keys will be stored in macOS Keychain with key name: '{}'",
                 self.keystore.key_name.as_ref().unwrap()
             );
