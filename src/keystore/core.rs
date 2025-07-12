@@ -3,13 +3,8 @@ use starknet_crypto::Felt;
 use tracing::info;
 
 use crate::errors::SignerError;
-use crate::keystore::backends::{BackendConfig, KeystoreBackend};
+use crate::keystore::backends::{BackendConfig, BackendFactory, KeystoreBackend};
 use crate::keystore::key_material::KeyMaterial;
-
-// Re-export backend implementations
-use crate::keystore::backends::{
-    EnvironmentBackend, FileBackend, OsKeyringBackend, SoftwareBackend,
-};
 
 /// Main keystore for managing validator keys using pluggable backends
 #[derive(Debug)]
@@ -20,25 +15,8 @@ pub struct Keystore {
 impl Keystore {
     /// Create a new keystore with the specified backend
     pub fn new(config: BackendConfig) -> Result<Self, SignerError> {
-        let backend: Box<dyn KeystoreBackend> = match config {
-            BackendConfig::Software { keystore_path } => {
-                Box::new(SoftwareBackend::new(keystore_path))
-            }
-            BackendConfig::File {
-                keystore_dir,
-                key_name,
-            } => Box::new(FileBackend::new_with_key(keystore_dir, key_name)),
-            BackendConfig::Environment { var_name } => Box::new(EnvironmentBackend::new(var_name)),
-            BackendConfig::OsKeyring { key_name } => Box::new(OsKeyringBackend::new(key_name)),
-            BackendConfig::Hsm { .. } => {
-                return Err(SignerError::Config(
-                    "HSM backend not yet implemented".to_string(),
-                ));
-            }
-        };
-
+        let backend = BackendFactory::create(config)?;
         info!("Created keystore with backend: {}", backend.backend_type());
-
         Ok(Self { backend })
     }
 
@@ -92,6 +70,7 @@ impl Keystore {
         private_key_hex: &str,
         passphrase: &str,
     ) -> Result<(), SignerError> {
+        use crate::keystore::backends::SoftwareBackend;
         SoftwareBackend::create_keystore(keystore_path, private_key_hex, passphrase).await
     }
 

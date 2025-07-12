@@ -4,7 +4,7 @@ use std::path::Path;
 use tracing::{info, warn};
 
 use crate::errors::SignerError;
-use crate::keystore::backends::KeystoreBackend;
+use crate::keystore::backends::{BackendUtils, KeystoreBackend};
 use crate::keystore::encryption::{decrypt_key, encrypt_key};
 use crate::keystore::key_material::KeyMaterial;
 
@@ -36,18 +36,8 @@ impl SoftwareBackend {
         fs::write(keystore_path, &jwe_token)
             .map_err(|e| SignerError::Config(format!("Failed to write keystore: {e}")))?;
 
-        // Set restrictive permissions (Unix only)
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(keystore_path)
-                .map_err(|e| SignerError::Config(format!("Failed to get keystore metadata: {e}")))?
-                .permissions();
-            perms.set_mode(0o600); // rw-------
-            fs::set_permissions(keystore_path, perms).map_err(|e| {
-                SignerError::Config(format!("Failed to set keystore permissions: {e}"))
-            })?;
-        }
+        // Set restrictive permissions using common utilities
+        BackendUtils::set_secure_file_permissions(keystore_path)?;
 
         info!("Created encrypted keystore at: {}", keystore_path);
         Ok(())
@@ -117,9 +107,8 @@ impl KeystoreBackend for SoftwareBackend {
             return Ok(()); // Not an error during validation, will fail at init
         }
 
-        // Check if file is readable
-        fs::metadata(&self.keystore_path)
-            .map_err(|e| SignerError::Config(format!("Cannot access keystore file: {e}")))?;
+        // Check if file is readable using common utilities
+        BackendUtils::check_path_readable(&self.keystore_path)?;
 
         Ok(())
     }

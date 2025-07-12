@@ -2,6 +2,22 @@ use crate::errors::SignerError;
 use crate::keystore::key_material::KeyMaterial;
 use async_trait::async_trait;
 
+// Backend implementations
+pub mod environment;
+pub mod factory;
+pub mod file;
+pub mod os_keyring;
+pub mod software;
+pub mod utils;
+
+// Re-exports for convenience
+pub use environment::EnvironmentBackend;
+pub use factory::BackendFactory;
+pub use file::FileBackend;
+pub use os_keyring::OsKeyringBackend;
+pub use software::SoftwareBackend;
+pub use utils::BackendUtils;
+
 /// Trait for keystore backends that provide secure key storage and retrieval
 #[async_trait]
 pub trait KeystoreBackend: Send + Sync + std::fmt::Debug {
@@ -65,15 +81,3 @@ impl BackendConfig {
         }
     }
 }
-
-// Backend implementations
-pub mod environment;
-pub mod file;
-pub mod os_keyring;
-pub mod software;
-
-// Re-exports for convenience
-pub use environment::EnvironmentBackend;
-pub use file::FileBackend;
-pub use os_keyring::OsKeyringBackend;
-pub use software::SoftwareBackend;

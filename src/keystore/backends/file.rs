@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use tracing::{info, warn};
 
 use crate::errors::SignerError;
-use crate::keystore::backends::KeystoreBackend;
+use crate::keystore::backends::{BackendUtils, KeystoreBackend};
 use crate::keystore::encryption::{decrypt_key, encrypt_key};
 use crate::keystore::key_material::KeyMaterial;
 
@@ -65,25 +65,7 @@ impl FileBackend {
     /// Create keystore directory if it doesn't exist
     fn ensure_directory_exists(&self) -> Result<(), SignerError> {
         if !self.keystore_dir.exists() {
-            fs::create_dir_all(&self.keystore_dir).map_err(|e| {
-                SignerError::Config(format!("Failed to create keystore directory: {e}"))
-            })?;
-
-            // Set restrictive permissions (Unix only)
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let mut perms = fs::metadata(&self.keystore_dir)
-                    .map_err(|e| {
-                        SignerError::Config(format!("Failed to get directory metadata: {e}"))
-                    })?
-                    .permissions();
-                perms.set_mode(0o700); // rwx------
-                fs::set_permissions(&self.keystore_dir, perms).map_err(|e| {
-                    SignerError::Config(format!("Failed to set directory permissions: {e}"))
-                })?;
-            }
-
+            BackendUtils::ensure_secure_directory(self.keystore_dir.to_str().unwrap())?;
             info!(
                 "Created keystore directory: {}",
                 self.keystore_dir.display()
@@ -125,20 +107,8 @@ impl FileBackend {
         fs::write(&metadata_path, data)
             .map_err(|e| SignerError::Config(format!("Failed to write metadata: {e}")))?;
 
-        // Set restrictive permissions (Unix only)
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(&metadata_path)
-                .map_err(|e| {
-                    SignerError::Config(format!("Failed to get metadata file metadata: {e}"))
-                })?
-                .permissions();
-            perms.set_mode(0o600); // rw-------
-            fs::set_permissions(&metadata_path, perms).map_err(|e| {
-                SignerError::Config(format!("Failed to set metadata file permissions: {e}"))
-            })?;
-        }
+        // Set restrictive permissions using common utilities
+        BackendUtils::set_secure_file_permissions(metadata_path.to_str().unwrap())?;
 
         Ok(())
     }
@@ -216,18 +186,8 @@ impl FileBackend {
             SignerError::Config(format!("Failed to write key file {key_name}: {e}"))
         })?;
 
-        // Set restrictive permissions (Unix only)
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(&key_path)
-                .map_err(|e| SignerError::Config(format!("Failed to get key file metadata: {e}")))?
-                .permissions();
-            perms.set_mode(0o600); // rw-------
-            fs::set_permissions(&key_path, perms).map_err(|e| {
-                SignerError::Config(format!("Failed to set key file permissions: {e}"))
-            })?;
-        }
+        // Set restrictive permissions using common utilities
+        BackendUtils::set_secure_file_permissions(key_path.to_str().unwrap())?;
 
         info!("Saved key '{}' to file keystore", key_name);
         Ok(())
@@ -412,21 +372,9 @@ impl KeystoreBackend for FileBackend {
             }
         }
 
-        // Check write permissions if directory exists
+        // Check write permissions if directory exists using common utilities
         if self.keystore_dir.exists() {
-            let test_file = self.keystore_dir.join(".test_write");
-            match fs::write(&test_file, "test") {
-                Ok(()) => {
-                    let _ = fs::remove_file(&test_file);
-                }
-                Err(e) => {
-                    return Err(SignerError::Config(format!(
-                        "Cannot write to keystore directory {}: {}",
-                        self.keystore_dir.display(),
-                        e
-                    )));
-                }
-            }
+            BackendUtils::check_directory_writable(self.keystore_dir.to_str().unwrap())?;
         }
 
         Ok(())
