@@ -2,6 +2,17 @@
 
 A secure remote signing service for Starknet validators.
 
+## Prerequisites
+
+- [Rust](https://www.rust-lang.org/tools/install) (latest stable version)
+- Linux: GCC 11+ and G++ 11+ compilers
+
+## Building
+
+```bash
+cargo build --release
+```
+
 ## Quick Start
 
 ### 1. Add a Key
